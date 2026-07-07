@@ -1,8 +1,20 @@
 {% extends "base.html" %}
+{% block title %}Home{% endblock %}
 {% block content %}
-<h1>Páginas</h1>
-<ul class="pagelist">
-  {% for slug in slugs %}<li><a href="/{{ slug }}">{{ slug }}</a></li>{% else %}<li>No hay páginas todavía.</li>{% endfor %}
+<div class="breadcrumb">Home</div>
+<h1 class="page-title">Your wiki</h1>
+<p class="meta">{{ nav_pages()|length }} page{{ '' if nav_pages()|length == 1 else 's' }}</p>
+<hr class="rule">
+{% if slugs %}
+<ul class="results">
+  {% for slug in slugs %}
+  <li>
+    <a class="result-title" href="/{{ slug }}">{{ slug.split('/')|last }}</a>
+    <div class="result-slug">{{ slug }}</div>
+  </li>
+  {% endfor %}
 </ul>
-<p><a href="/index/edit">+ nueva página</a></p>
+{% else %}
+<p class="empty">No pages yet. <a href="/index/edit">Create the first one →</a></p>
+{% endif %}
 {% endblock %}

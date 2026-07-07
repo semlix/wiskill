@@ -1,16 +1,44 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}wiskill{% endblock %}</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}wiskill{% endblock %} · wiskill</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Spline+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
+  {% block head %}{% endblock %}
 </head>
-<body>
-  <header>
-    <a href="/" class="brand">wiskill</a>
-    <form action="/search" method="get" class="search"><input name="q" placeholder="Buscar…" value="{{ q|default('') }}"></form>
-    {% if user %}<span class="who">{{ user.username }} ({{ user.role.value }}) · <a href="/logout">salir</a></span>{% endif %}
-  </header>
-  <main>{% block content %}{% endblock %}</main>
+<body class="{% if not user %}is-auth{% endif %}">
+{% if user %}
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <a href="/" class="brand"><span class="brand-mark">✦</span> wiskill</a>
+      <a href="/index/edit" class="new-btn" title="New page">＋ New</a>
+    </div>
+    <form action="/search" method="get" class="search" role="search">
+      <input name="q" placeholder="Search notes…" value="{{ q|default('') }}" autocomplete="off">
+    </form>
+    <nav class="tree" aria-label="Pages">
+      <div class="tree-label">Pages</div>
+      {% set pages = nav_pages() %}
+      {% for s in pages %}
+        {% set depth = s.split('/')|length - 1 %}
+        <a href="/{{ s }}" class="tree-item{% if s == slug|default('') %} active{% endif %}" style="--depth:{{ depth }}">
+          <span class="tree-leaf">{{ s.split('/')|last }}</span>
+        </a>
+      {% else %}
+        <div class="tree-empty">No pages yet</div>
+      {% endfor %}
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who">{{ user.username }} · {{ user.role.value }}</span>
+      <a href="/logout">Sign out</a>
+    </div>
+  </aside>
+{% endif %}
+  <main class="main">{% block content %}{% endblock %}</main>
+{% block scripts %}{% endblock %}
 </body>
 </html>

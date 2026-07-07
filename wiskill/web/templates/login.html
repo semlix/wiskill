@@ -1,11 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Entrar{% endblock %}
+{% block title %}Sign in{% endblock %}
 {% block content %}
-<h1>Entrar</h1>
-{% if error %}<p class="error">{{ error }}</p>{% endif %}
-<form action="/login" method="post" class="login">
-  <label>Usuario <input name="username" autofocus></label>
-  <label>Contraseña <input name="password" type="password"></label>
-  <button type="submit">Entrar</button>
-</form>
+<div class="auth-card">
+  <div class="brand"><span class="brand-mark">✦</span> wiskill</div>
+  <p class="auth-tag">Your semantic notebook</p>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <form action="/login" method="post">
+    <div class="field">
+      <label for="username">Username</label>
+      <input id="username" name="username" autofocus autocomplete="username">
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary" type="submit" style="width:100%;margin-top:.4rem">Sign in</button>
+  </form>
+</div>
 {% endblock %}

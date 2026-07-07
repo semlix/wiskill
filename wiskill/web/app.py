@@ -25,6 +25,8 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None) -> 
     )
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
     templates = Jinja2Templates(directory=str(_HERE / "templates"))
+    # Expose the page list to every template (sidebar nav tree).
+    templates.env.globals["nav_pages"] = service.list_pages
 
     if apikeys is not None:
         from wiskill.web.api import build_api_router
@@ -45,7 +47,7 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None) -> 
         principal = users.authenticate(username, password)
         if principal is None:
             return templates.TemplateResponse(
-                request, "login.html", {"error": "Credenciales inválidas"})
+                request, "login.html", {"error": "Invalid credentials"})
         request.session["user"] = {"username": principal.username, "role": principal.role.value}
         return RedirectResponse("/", status_code=303)
 

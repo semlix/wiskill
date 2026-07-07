@@ -1,12 +1,23 @@
 {% extends "base.html" %}
 {% block title %}{{ page.title }}{% endblock %}
 {% block content %}
-<article>
-  <h1>{{ page.title }}</h1>
-  {% if page.tags %}<p class="tags">{% for t in page.tags %}<span>{{ t }}</span>{% endfor %}</p>{% endif %}
-  <div class="body">{{ html|safe }}</div>
-</article>
-<p class="actions"><a href="/{{ slug }}/edit">editar</a>
-  <form action="/{{ slug }}/delete" method="post" onsubmit="return confirm('¿Borrar?')"><button>borrar</button></form>
-</p>
+<div class="breadcrumb">
+  <a href="/">Home</a>
+  {% set parts = slug.split('/') %}
+  {% for part in parts %}<span class="sep">/</span>{{ part }}{% endfor %}
+</div>
+<h1 class="page-title">{{ page.title }}</h1>
+<div class="meta">
+  <span>Updated {{ page.updated.strftime('%b %d, %Y') }}</span>
+  <span class="result-slug">{{ slug }}</span>
+</div>
+{% if page.tags %}<p class="tags">{% for t in page.tags %}<span>#{{ t }}</span>{% endfor %}</p>{% endif %}
+<hr class="rule">
+<article class="prose">{{ html|safe }}</article>
+<div class="actions">
+  <a class="btn btn-primary" href="/{{ slug }}/edit">Edit</a>
+  <form action="/{{ slug }}/delete" method="post" onsubmit="return confirm('Delete this page?')">
+    <button class="btn btn-danger" type="submit">Delete</button>
+  </form>
+</div>
 {% endblock %}

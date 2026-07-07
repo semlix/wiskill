@@ -1,11 +1,24 @@
 {% extends "base.html" %}
-{% block title %}Buscar: {{ q }}{% endblock %}
+{% block title %}Search: {{ q }}{% endblock %}
 {% block content %}
-<h1>Resultados para “{{ q }}”</h1>
+<div class="breadcrumb"><a href="/">Home</a> <span class="sep">/</span> Search</div>
+<h1 class="page-title">{% if q %}Results for “{{ q }}”{% else %}Search{% endif %}</h1>
+{% if q %}<p class="meta">{{ results|length }} result{{ '' if results|length == 1 else 's' }}</p>{% endif %}
+<hr class="rule">
+{% if results %}
 <ul class="results">
   {% for r in results %}
-  <li><a href="/{{ r.slug }}">{{ r.title }}</a> <small>({{ '%.3f'|format(r.score) }})</small>
-      <div class="snippet">{{ r.snippet|safe }}</div></li>
-  {% else %}<li>Sin resultados.</li>{% endfor %}
+  <li>
+    <a class="result-title" href="/{{ r.slug }}">{{ r.title }}</a>
+    <span class="result-score">{{ '%.3f'|format(r.score) }}</span>
+    <div class="result-slug">{{ r.slug }}</div>
+    <div class="snippet">{{ r.snippet|safe }}</div>
+  </li>
+  {% endfor %}
 </ul>
+{% elif q %}
+<p class="empty">No results for “{{ q }}”.</p>
+{% else %}
+<p class="empty">Type a query in the search box to find notes.</p>
+{% endif %}
 {% endblock %}

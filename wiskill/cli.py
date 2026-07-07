@@ -54,7 +54,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "init":
         store = PageStore(config.pages_dir)
         if not store.exists("index"):
-            store.write("index", "# Bienvenido a wiskill\n\nEditá esta página.", title="index")
+            store.write(
+                "index",
+                "# Welcome to wiskill\n\n"
+                "This is your home page. Edit it, or create new pages.\n\n"
+                "- Link to other notes with `[[slug]]` or `[[slug|label]]`.\n"
+                "- Organize with namespaces: `projects/semlix`, `notes/2026-07`.\n"
+                "- Search combines keywords **and** meaning (hybrid search).\n",
+                title="Welcome",
+            )
         _service(config).reindex()
         print(f"initialized wiki at {config.pages_dir}")
         return 0

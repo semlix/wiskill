@@ -15,6 +15,37 @@ try:
 except ImportError:
     BM25Index = None
 
+
+class _MergeTolerantWriter:
+    """Adapts a BM25Writer for use inside semlix's HybridIndexWriter, whose
+    commit() passes ``merge=`` — a kwarg the core IndexWriter accepts but
+    BM25Writer.commit() (which only takes ``optimize``) does not. Forwards
+    everything else unchanged."""
+
+    def __init__(self, writer):
+        self._writer = writer
+
+    def __getattr__(self, name):
+        return getattr(self._writer, name)
+
+    def commit(self, merge=None, optimize=False, **_):
+        return self._writer.commit(optimize=optimize)
+
+    def cancel(self):
+        cancel = getattr(self._writer, "cancel", None)
+        if cancel is not None:
+            cancel()
+
+
+if BM25Index is not None:
+    class _HybridBM25Index(BM25Index):
+        """A BM25Index whose writer tolerates HybridIndexWriter's merge kwarg."""
+
+        def writer(self, **kwargs):
+            return _MergeTolerantWriter(super().writer(**kwargs))
+else:
+    _HybridBM25Index = None
+
 from semlix.semantic import HybridSearcher, HybridIndexWriter
 from semlix.semantic.stores import NumpyVectorStore
 
@@ -148,9 +179,10 @@ class HybridBackend:
         lex_dir = self.index_dir / "lexical"
         lex_dir.mkdir(parents=True, exist_ok=True)
         if lexical_engine == "bm25":
-            if BM25Index is None:
+            if _HybridBM25Index is None:
                 raise RuntimeError("lexical_engine='bm25' needs `pip install bm25s PyStemmer`")
-            self.ix = BM25Index(str(lex_dir), WHOOSH_SCHEMA)
+            # Adapter subclass: its writer tolerates HybridIndexWriter's merge kwarg.
+            self.ix = _HybridBM25Index(str(lex_dir), WHOOSH_SCHEMA)
         else:
             if semlix_index.exists_in(str(lex_dir)):
                 self.ix = semlix_index.open_dir(str(lex_dir))

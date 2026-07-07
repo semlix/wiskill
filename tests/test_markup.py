@@ -1,4 +1,4 @@
-from wiskill.markup import render_html, extract_wikilinks
+from wiskill.markup import render_html, extract_wikilinks, plain_summary
 
 
 def test_extract_wikilinks():
@@ -38,3 +38,21 @@ def test_wikilink_label_with_ampersand_not_double_escaped():
     html = render_html("[[a|Web UI & JSON API]]", lambda s: True)
     assert ">Web UI &amp; JSON API<" in html
     assert "&amp;amp;" not in html
+
+
+def test_children_tag_lists_entries_newest_first():
+    children = [("notes/b", "Second", "Jul 08, 2026"), ("notes/a", "First", "Jul 07, 2026")]
+    html = render_html("Intro.\n\n{{children}}\n", lambda s: True, children=children)
+    assert html.index("Second") < html.index("First")
+    assert 'href="/notes/b"' in html and 'href="/notes/a"' in html
+
+
+def test_children_tag_falls_back_when_empty():
+    html = render_html("Intro.\n\n{{children}}\n", lambda s: True, children=[])
+    assert "Nothing here yet" in html
+
+
+def test_plain_summary_strips_children_tag():
+    summary = plain_summary("Intro text.\n\n{{children}}\n")
+    assert "{{children}}" not in summary
+    assert "Intro text" in summary

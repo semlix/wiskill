@@ -35,6 +35,7 @@ def plain_summary(body: str, limit: int = 155) -> str:
     """A plain-text one-line summary of a Markdown body, for meta descriptions.
     Strips common Markdown/wikilink syntax and collapses whitespace."""
     text = _WIKILINK.sub(lambda m: (m.group(2) or m.group(1)).strip(), body)
+    text = _CHILDREN_TAG.sub("", text)                  # {{children}} placeholder
     text = re.sub(r"[#>*_`~\[\]!]", " ", text)          # markdown punctuation
     text = re.sub(r"\((?:https?://)?[^)]*\)", " ", text)  # link targets
     text = re.sub(r"\s+", " ", text).strip()

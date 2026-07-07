@@ -34,3 +34,15 @@ def test_reader_cannot_write(tmp_path):
     reader_tools = WikiTools(service, Principal("r", Role.READER))
     with pytest.raises(PermissionError):
         reader_tools.wiki_write("x", "body")
+
+
+def test_reindex_tool(tmp_path):
+    service = WikiService(PageStore(tmp_path / "p"), LexicalBackend(tmp_path / "i"))
+    editor = WikiTools(service, Principal("e", Role.EDITOR))
+    editor.wiki_write("a", "hello content")
+    stats = editor.wiki_reindex()
+    assert set(stats) == {"indexed", "removed"}
+    # readers cannot trigger reindex
+    reader = WikiTools(service, Principal("r", Role.READER))
+    with pytest.raises(PermissionError):
+        reader.wiki_reindex()

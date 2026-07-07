@@ -36,6 +36,15 @@ class WikiTools:
     def wiki_delete(self, slug: str) -> bool:
         return self.service.remove(slug, principal=self.principal)
 
+    def wiki_reindex(self) -> dict:
+        """Sync the index to on-disk .md files (for out-of-band edits). Safe:
+        reconciles by content hash, never deletes the index. Editor role."""
+        from wiskill.auth import Role
+        from wiskill.service import PermissionError
+        if not self.principal.role.allows(Role.EDITOR):
+            raise PermissionError("reindex requires editor role")
+        return self.service.reindex()
+
 
 def build_mcp(service, principal: Principal, host: str = "127.0.0.1", port: int = 8765,
               stateless: bool = False, http_path: str = "/mcp"):
@@ -72,6 +81,12 @@ def build_mcp(service, principal: Principal, host: str = "127.0.0.1", port: int 
     def wiki_delete(slug: str) -> bool:
         """Delete a wiki page by slug. Requires editor role."""
         return tools.wiki_delete(slug)
+
+    @mcp.tool()
+    def wiki_reindex() -> dict:
+        """Sync the search index to the on-disk Markdown files (use after files
+        were edited outside the app). Returns {indexed, removed}. Editor role."""
+        return tools.wiki_reindex()
 
     return mcp
 

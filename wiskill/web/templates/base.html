@@ -49,6 +49,7 @@
         <details class="tree-folder"{% if is_current or is_ancestor %} open{% endif %}>
           <summary class="tree-item{% if is_current %} active{% endif %}" style="--depth:{{ depth }}">
             {% if node.slug %}<a href="/{{ node.slug }}" class="tree-leaf">{{ name }}</a>{% else %}<span class="tree-leaf">{{ name }}</span>{% endif %}
+            <span class="tree-count">({{ node.count }})</span>
           </summary>
           <div class="tree-children">
             {% for child_name, child_node in node.children.items() %}

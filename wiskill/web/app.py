@@ -26,11 +26,13 @@ def _nav_sort_key(name: str) -> tuple:
 
 
 def build_nav_tree(slugs: list[str]) -> dict:
-    """Nest a flat slug list into {name: {"slug": str|None, "children": {...}}},
+    """Nest a flat slug list into
+    {name: {"slug": str|None, "children": {...}, "count": int}},
     ordered depth-first with 'index' pinned first at every level. A node's
     "slug" is set only if that exact path is itself a page (namespaces like
     'projects' are usually also pages); pure intermediate segments get
-    slug=None and render as a plain (non-linking) label."""
+    slug=None and render as a plain (non-linking) label. "count" is the
+    total number of real pages in that node's subtree, itself included."""
     root: dict = {}
     for slug in slugs:
         parts = slug.split("/")
@@ -41,13 +43,15 @@ def build_nav_tree(slugs: list[str]) -> dict:
                 entry["slug"] = slug
             node = entry["children"]
 
-    def sort_recursive(d: dict) -> dict:
+    def finalize(d: dict) -> dict:
         ordered = {k: d[k] for k in sorted(d.keys(), key=_nav_sort_key)}
         for v in ordered.values():
-            v["children"] = sort_recursive(v["children"])
+            v["children"] = finalize(v["children"])
+            v["count"] = (1 if v["slug"] else 0) + sum(
+                c["count"] for c in v["children"].values())
         return ordered
 
-    return sort_recursive(root)
+    return finalize(root)
 
 
 def create_app(service: WikiService, users: UserStore, config, apikeys=None,

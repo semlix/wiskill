@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import re
-from html import escape
 from typing import Callable
 
 from markdown_it import MarkdownIt
@@ -53,12 +52,16 @@ def extract_wikilinks(body: str) -> list[str]:
 
 
 def _replace_wikilinks(body: str, exists: Callable[[str], bool]) -> str:
+    # `body` here is already-rendered HTML (from _md.render), so any special
+    # characters in the captured slug/label are already HTML-entity-escaped by
+    # markdown-it. Re-escaping them would double-escape (e.g. "&" -> "&amp;"
+    # -> "&amp;amp;", which browsers then show as the literal text "&amp;").
     def repl(m: re.Match) -> str:
         slug = m.group(1).strip()
         label = (m.group(2) or slug).strip()
         if exists(slug):
-            return f'<a href="/{escape(slug)}" class="wikilink">{escape(label)}</a>'
-        return f'<a href="/{escape(slug)}/edit" class="wikilink missing">{escape(label)}</a>'
+            return f'<a href="/{slug}" class="wikilink">{label}</a>'
+        return f'<a href="/{slug}/edit" class="wikilink missing">{label}</a>'
     return _WIKILINK.sub(repl, body)
 
 

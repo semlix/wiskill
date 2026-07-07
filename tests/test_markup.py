@@ -29,3 +29,12 @@ def test_wikilink_existing_vs_missing():
 def test_bare_url_is_autolinked():
     html = render_html("visit https://example.com now", lambda s: True)
     assert '<a href="https://example.com">https://example.com</a>' in html
+
+
+def test_wikilink_label_with_ampersand_not_double_escaped():
+    # Regression: markdown-it already HTML-escapes "&" -> "&amp;" when
+    # rendering the paragraph text; re-escaping the captured label turned it
+    # into "&amp;amp;", which browsers render as the literal text "&amp;".
+    html = render_html("[[a|Web UI & JSON API]]", lambda s: True)
+    assert ">Web UI &amp; JSON API<" in html
+    assert "&amp;amp;" not in html

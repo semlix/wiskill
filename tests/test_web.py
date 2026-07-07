@@ -75,6 +75,51 @@ def test_public_read_still_blocks_anonymous_edit(public_client):
     assert "/login" in r.headers["location"]
 
 
+@pytest.fixture
+def private_ns_client(tmp_path, monkeypatch):
+    from wiskill.auth import Principal, Role
+    monkeypatch.setenv("WISKILL_SECRET", "s")
+    store = PageStore(tmp_path / "pages")
+    backend = LexicalBackend(tmp_path / "idx")
+    service = WikiService(store, backend)
+    ed = Principal("ed", Role.EDITOR)
+    service.save("index", "public home", title="Home", tags=[], principal=ed)
+    service.save("projects/foo", "public project content", title="Foo", tags=[], principal=ed)
+    service.save("notes/secret", "my private diary entry xyzzy", title="Secret", tags=[], principal=ed)
+    users = UserStore(tmp_path / "users.json")
+    users.add("ed", "pw", Role.EDITOR)
+    app = create_app(service, users,
+                     WiskillConfig(public_read=True, private_namespaces=("notes", "ideas")))
+    return TestClient(app)
+
+
+def test_private_namespace_blocks_anonymous_view(private_ns_client):
+    r = private_ns_client.get("/notes/secret", follow_redirects=False)
+    assert r.status_code in (302, 303, 307)
+    assert "/login" in r.headers["location"]
+    # a public page in a non-private namespace stays open to guests
+    assert private_ns_client.get("/projects/foo").status_code == 200
+
+
+def test_private_namespace_excluded_from_anonymous_search(private_ns_client):
+    r = private_ns_client.get("/search", params={"q": "diary"})
+    assert r.status_code == 200
+    assert "notes/secret" not in r.text
+
+
+def test_private_namespace_hidden_from_anonymous_sidebar(private_ns_client):
+    r = private_ns_client.get("/")
+    assert "notes/secret" not in r.text
+    assert "projects/foo" in r.text
+
+
+def test_private_namespace_visible_to_logged_in_user(private_ns_client):
+    _login(private_ns_client, user="ed", pw="pw")
+    r = private_ns_client.get("/notes/secret")
+    assert r.status_code == 200 and "private diary entry" in r.text
+    assert "notes/secret" in private_ns_client.get("/").text
+
+
 def test_home_renders_index_page(client):
     _login(client)
     client.post("/index", data={"title": "Home", "tags": "", "body": "welcome body zzz"},

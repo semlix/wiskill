@@ -26,6 +26,9 @@ class WiskillConfig:
     mcp_allowed_hosts: tuple[str, ...] = ()  # Host headers the MCP transport accepts
     # (e.g. your public domain). Empty = disable the MCP SDK's DNS-rebinding
     # Host check entirely — fine here since mcp_require_key already gates /mcp.
+    private_namespaces: tuple[str, ...] = ()  # top-level namespaces (e.g. "notes",
+    # "ideas") that require a logged-in account even when public_read is on.
+    # Any authenticated role qualifies; only true anonymous guests are blocked.
 
 
 def load_config(path: str | Path | None = None) -> WiskillConfig:
@@ -73,4 +76,5 @@ def load_config(path: str | Path | None = None) -> WiskillConfig:
         public_read=bool(web.get("public_read", defaults.public_read)),
         mcp_require_key=bool(web.get("mcp_require_key", defaults.mcp_require_key)),
         mcp_allowed_hosts=tuple(web.get("mcp_allowed_hosts", defaults.mcp_allowed_hosts)),
+        private_namespaces=tuple(web.get("private_namespaces", defaults.private_namespaces)),
     )

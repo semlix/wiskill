@@ -60,8 +60,20 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
     )
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
     templates = Jinja2Templates(directory=str(_HERE / "templates"))
-    # Expose the page list to every template (sidebar nav tree).
-    templates.env.globals["nav_pages"] = service.list_pages
+
+    def is_private(slug: str) -> bool:
+        top = slug.split("/", 1)[0]
+        return top in config.private_namespaces
+
+    def nav_pages_for(authed: bool) -> list[str]:
+        """Sidebar page list. Anonymous guests never see private-namespace
+        slugs — not just their content, their existence."""
+        slugs = service.list_pages()
+        return slugs if authed else [s for s in slugs if not is_private(s)]
+
+    # Default (unauthenticated) global for templates rendered outside a route
+    # (e.g. an error page); routes override with the request-scoped list.
+    templates.env.globals["nav_pages"] = lambda: nav_pages_for(False)
 
     # Mount MCP before the catch-all page routes so /mcp isn't captured as a slug.
     if mcp_app is not None:
@@ -108,7 +120,8 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         return RedirectResponse("/login", status_code=303)
 
     def _common(p, authed):
-        return {"user": p, "authenticated": authed, "public": config.public_read}
+        return {"user": p, "authenticated": authed, "public": config.public_read,
+                "nav_pages": (lambda: nav_pages_for(authed))}
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request):
@@ -120,7 +133,7 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         html = service.render("index")
         if html is None:
             return templates.TemplateResponse(request, "index.html", {
-                "slugs": service.list_pages(), "meta_title": "Home",
+                "slugs": nav_pages_for(authed), "meta_title": "Home",
                 "meta_description": _SITE_DESC, **_common(p, authed)})
         page = service.get("index")
         return templates.TemplateResponse(request, "page.html", {
@@ -134,6 +147,8 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         if p is None:
             return RedirectResponse("/login", status_code=307)
         results = service.search(q) if q else []
+        if not authed:
+            results = [r for r in results if not is_private(r.slug)]
         return templates.TemplateResponse(request, "search.html", {
             "q": q, "results": results,
             "meta_title": (f"Search: {q}" if q else "Search"),
@@ -146,7 +161,8 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         if p is None:
             return RedirectResponse("/login", status_code=307)
         return templates.TemplateResponse(request, "new.html",
-                                          {"user": p, "error": error, "meta_title": "New page"})
+                                          {"user": p, "error": error, "meta_title": "New page",
+                                           "nav_pages": (lambda: nav_pages_for(True))})
 
     @app.post("/new")
     def new_create(request: Request, slug: str = Form("")):
@@ -157,7 +173,8 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         if not slug:
             return templates.TemplateResponse(
                 request, "new.html",
-                {"user": p, "error": "Please enter a slug.", "meta_title": "New page"})
+                {"user": p, "error": "Please enter a slug.", "meta_title": "New page",
+                 "nav_pages": (lambda: nav_pages_for(True))})
         return RedirectResponse(f"/{slug}/edit", status_code=303)
 
     @app.get("/{slug:path}/edit", response_class=HTMLResponse)
@@ -168,7 +185,8 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         page = service.get(slug)
         return templates.TemplateResponse(request, "edit.html", {
             "slug": slug, "page": page, "user": p,
-            "meta_title": f"Edit {slug}"})
+            "meta_title": f"Edit {slug}",
+            "nav_pages": (lambda: nav_pages_for(True))})
 
     @app.post("/{slug:path}/delete")
     def delete(request: Request, slug: str):
@@ -198,6 +216,10 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
     def view(request: Request, slug: str):
         p, authed = viewer(request)
         if p is None:
+            return RedirectResponse("/login", status_code=307)
+        if is_private(slug) and not authed:
+            # Don't reveal whether a private page exists to a guest — same
+            # redirect as "not logged in at all".
             return RedirectResponse("/login", status_code=307)
         html = service.render(slug)
         if html is None:

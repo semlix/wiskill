@@ -1,6 +1,6 @@
 # wiskill — hybrid (lexical + semantic) wiki service.
 # The all-MiniLM embedding model is baked in so startup needs no network.
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -21,11 +21,6 @@ RUN uv pip install --system -e ".[semantic,mcp]"
 
 # Bake the default embedding model into the image's HF cache.
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
-
-# Non-root. uid 1000 matches the typical host user so bind-mounted ./data is
-# writable and files it creates stay owned by the host user.
-RUN useradd --create-home --uid 1000 app && chown -R app:app /opt/hf-cache /app
-USER app
 
 EXPOSE 8000
 

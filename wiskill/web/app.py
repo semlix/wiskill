@@ -20,6 +20,36 @@ _SITE_DESC = ("A personal semantic wiki — Markdown notes with fast hybrid "
               "lexical + semantic search.")
 
 
+def _nav_sort_key(name: str) -> tuple:
+    """'index' always first, everything else alphabetical."""
+    return (name != "index", name)
+
+
+def build_nav_tree(slugs: list[str]) -> dict:
+    """Nest a flat slug list into {name: {"slug": str|None, "children": {...}}},
+    ordered depth-first with 'index' pinned first at every level. A node's
+    "slug" is set only if that exact path is itself a page (namespaces like
+    'projects' are usually also pages); pure intermediate segments get
+    slug=None and render as a plain (non-linking) label."""
+    root: dict = {}
+    for slug in slugs:
+        parts = slug.split("/")
+        node = root
+        for i, part in enumerate(parts):
+            entry = node.setdefault(part, {"slug": None, "children": {}})
+            if i == len(parts) - 1:
+                entry["slug"] = slug
+            node = entry["children"]
+
+    def sort_recursive(d: dict) -> dict:
+        ordered = {k: d[k] for k in sorted(d.keys(), key=_nav_sort_key)}
+        for v in ordered.values():
+            v["children"] = sort_recursive(v["children"])
+        return ordered
+
+    return sort_recursive(root)
+
+
 def create_app(service: WikiService, users: UserStore, config, apikeys=None,
                mcp_server=None) -> FastAPI:
     # When an MCP server is provided, mount it at /mcp in the same process so it
@@ -71,9 +101,16 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         slugs = service.list_pages()
         return slugs if authed else [s for s in slugs if not is_private(s)]
 
-    # Default (unauthenticated) global for templates rendered outside a route
-    # (e.g. an error page); routes override with the request-scoped list.
+    def nav_tree_for(authed: bool) -> dict:
+        """Nested, collapsible sidebar tree (see build_nav_tree) over the
+        same authed-filtered page list as nav_pages_for."""
+        return build_nav_tree(nav_pages_for(authed))
+
+    # Default (unauthenticated) globals for templates rendered outside a
+    # route (e.g. an error page); routes override with the request-scoped
+    # version via _common()/explicit context.
     templates.env.globals["nav_pages"] = lambda: nav_pages_for(False)
+    templates.env.globals["nav_tree"] = lambda: nav_tree_for(False)
 
     # Mount MCP before the catch-all page routes so /mcp isn't captured as a slug.
     if mcp_app is not None:
@@ -121,7 +158,8 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
 
     def _common(p, authed):
         return {"user": p, "authenticated": authed, "public": config.public_read,
-                "nav_pages": (lambda: nav_pages_for(authed))}
+                "nav_pages": (lambda: nav_pages_for(authed)),
+                "nav_tree": (lambda: nav_tree_for(authed))}
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request):
@@ -162,7 +200,8 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
             return RedirectResponse("/login", status_code=307)
         return templates.TemplateResponse(request, "new.html",
                                           {"user": p, "error": error, "meta_title": "New page",
-                                           "nav_pages": (lambda: nav_pages_for(True))})
+                                           "nav_pages": (lambda: nav_pages_for(True)),
+                 "nav_tree": (lambda: nav_tree_for(True))})
 
     @app.post("/new")
     def new_create(request: Request, slug: str = Form("")):
@@ -174,7 +213,8 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
             return templates.TemplateResponse(
                 request, "new.html",
                 {"user": p, "error": "Please enter a slug.", "meta_title": "New page",
-                 "nav_pages": (lambda: nav_pages_for(True))})
+                 "nav_pages": (lambda: nav_pages_for(True)),
+                 "nav_tree": (lambda: nav_tree_for(True))})
         return RedirectResponse(f"/{slug}/edit", status_code=303)
 
     @app.get("/{slug:path}/edit", response_class=HTMLResponse)
@@ -186,7 +226,8 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         return templates.TemplateResponse(request, "edit.html", {
             "slug": slug, "page": page, "user": p,
             "meta_title": f"Edit {slug}",
-            "nav_pages": (lambda: nav_pages_for(True))})
+            "nav_pages": (lambda: nav_pages_for(True)),
+                 "nav_tree": (lambda: nav_tree_for(True))})
 
     @app.post("/{slug:path}/delete")
     def delete(request: Request, slug: str):

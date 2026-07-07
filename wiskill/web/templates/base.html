@@ -41,13 +41,31 @@
     <form action="/search" method="get" class="search" role="search">
       <input name="q" placeholder="Search notes…" value="{{ q|default('') }}" autocomplete="off">
     </form>
+    {% macro render_node(name, node, depth, path) %}
+      {% set current = slug|default('') %}
+      {% set is_current = node.slug and node.slug == current %}
+      {% set is_ancestor = current.startswith(path ~ '/') %}
+      {% if node.children %}
+        <details class="tree-folder"{% if is_current or is_ancestor %} open{% endif %}>
+          <summary class="tree-item{% if is_current %} active{% endif %}" style="--depth:{{ depth }}">
+            {% if node.slug %}<a href="/{{ node.slug }}" class="tree-leaf">{{ name }}</a>{% else %}<span class="tree-leaf">{{ name }}</span>{% endif %}
+          </summary>
+          <div class="tree-children">
+            {% for child_name, child_node in node.children.items() %}
+              {{ render_node(child_name, child_node, depth + 1, path ~ '/' ~ child_name) }}
+            {% endfor %}
+          </div>
+        </details>
+      {% else %}
+        <a href="/{{ node.slug }}" class="tree-item{% if is_current %} active{% endif %}" style="--depth:{{ depth }}">
+          <span class="tree-leaf">{{ name }}</span>
+        </a>
+      {% endif %}
+    {% endmacro %}
     <nav class="tree" aria-label="Pages">
       <div class="tree-label">Pages</div>
-      {% for s in nav_pages() %}
-        {% set depth = s.split('/')|length - 1 %}
-        <a href="/{{ s }}" class="tree-item{% if s == slug|default('') %} active{% endif %}" style="--depth:{{ depth }}">
-          <span class="tree-leaf">{{ s.split('/')|last }}</span>
-        </a>
+      {% for name, node in nav_tree().items() %}
+        {{ render_node(name, node, 0, name) }}
       {% else %}
         <div class="tree-empty">No pages yet</div>
       {% endfor %}

@@ -21,6 +21,7 @@ class WiskillConfig:
     apikeys_file: Path = Path("data/apikeys.json")
     session_secret_env: str = "WISKILL_SECRET"
     session_ttl_hours: int = 168
+    public_read: bool = False   # allow anonymous view + search (no login to read)
 
 
 def load_config(path: str | Path | None = None) -> WiskillConfig:
@@ -43,6 +44,7 @@ def load_config(path: str | Path | None = None) -> WiskillConfig:
     search = data.get("search", {})
     semantic = data.get("semantic", {})
     auth = data.get("auth", {})
+    web = data.get("web", {})
 
     def rel(value: str | None, default: Path) -> Path:
         if value is None:
@@ -64,4 +66,5 @@ def load_config(path: str | Path | None = None) -> WiskillConfig:
         apikeys_file=rel(auth.get("apikeys_file"), defaults.apikeys_file),
         session_secret_env=auth.get("session_secret_env", defaults.session_secret_env),
         session_ttl_hours=int(auth.get("session_ttl_hours", defaults.session_ttl_hours)),
+        public_read=bool(web.get("public_read", defaults.public_read)),
     )

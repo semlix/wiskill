@@ -12,9 +12,12 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from wiskill.auth import Principal, Role, UserStore
+from wiskill.markup import plain_summary
 from wiskill.service import PermissionError, WikiService
 
 _HERE = Path(__file__).parent
+_SITE_DESC = ("A personal semantic wiki — Markdown notes with fast hybrid "
+              "lexical + semantic search.")
 
 
 def create_app(service: WikiService, users: UserStore, config, apikeys=None,
@@ -51,21 +54,33 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         app.include_router(build_api_router(service, apikeys))
 
     def current(request: Request) -> Principal | None:
+        """The logged-in user, or None."""
         u = request.session.get("user")
         if not u:
             return None
         return Principal(username=u["username"], role=Role(u["role"]))
 
+    def viewer(request: Request) -> tuple[Principal | None, bool]:
+        """Who is viewing, and whether they're authenticated. When public_read
+        is on, anonymous visitors get an implicit READER (view + search only)."""
+        p = current(request)
+        if p is not None:
+            return p, True
+        if config.public_read:
+            return Principal(username="guest", role=Role.READER), False
+        return None, False
+
     @app.get("/login", response_class=HTMLResponse)
     def login_form(request: Request):
-        return templates.TemplateResponse(request, "login.html", {"error": None})
+        return templates.TemplateResponse(request, "login.html",
+                                          {"error": None, "meta_title": "Sign in"})
 
     @app.post("/login", response_class=HTMLResponse)
     def login(request: Request, username: str = Form(...), password: str = Form(...)):
         principal = users.authenticate(username, password)
         if principal is None:
             return templates.TemplateResponse(
-                request, "login.html", {"error": "Invalid credentials"})
+                request, "login.html", {"error": "Invalid credentials", "meta_title": "Sign in"})
         request.session["user"] = {"username": principal.username, "role": principal.role.value}
         return RedirectResponse("/", status_code=303)
 
@@ -74,35 +89,46 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         request.session.clear()
         return RedirectResponse("/login", status_code=303)
 
+    def _common(p, authed):
+        return {"user": p, "authenticated": authed, "public": config.public_read}
+
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request):
-        p = current(request)
+        p, authed = viewer(request)
         if p is None:
             return RedirectResponse("/login", status_code=307)
         # Home renders the "index" wiki page (DokuWiki-style start page). If it
         # doesn't exist yet, fall back to a page listing with a create prompt.
         html = service.render("index")
         if html is None:
-            return templates.TemplateResponse(
-                request, "index.html", {"slugs": service.list_pages(), "user": p})
+            return templates.TemplateResponse(request, "index.html", {
+                "slugs": service.list_pages(), "meta_title": "Home",
+                "meta_description": _SITE_DESC, **_common(p, authed)})
+        page = service.get("index")
         return templates.TemplateResponse(request, "page.html", {
-            "slug": "index", "html": html, "page": service.get("index"), "user": p})
+            "slug": "index", "html": html, "page": page,
+            "meta_title": page.title, "meta_description": plain_summary(page.body),
+            **_common(p, authed)})
 
     @app.get("/search", response_class=HTMLResponse)
     def search(request: Request, q: str = ""):
-        p = current(request)
+        p, authed = viewer(request)
         if p is None:
             return RedirectResponse("/login", status_code=307)
         results = service.search(q) if q else []
-        return templates.TemplateResponse(
-            request, "search.html", {"q": q, "results": results, "user": p})
+        return templates.TemplateResponse(request, "search.html", {
+            "q": q, "results": results,
+            "meta_title": (f"Search: {q}" if q else "Search"),
+            "meta_description": (f"Search results for “{q}”." if q else _SITE_DESC),
+            **_common(p, authed)})
 
     @app.get("/new", response_class=HTMLResponse)
     def new_form(request: Request, error: str | None = None):
         p = current(request)
         if p is None:
             return RedirectResponse("/login", status_code=307)
-        return templates.TemplateResponse(request, "new.html", {"user": p, "error": error})
+        return templates.TemplateResponse(request, "new.html",
+                                          {"user": p, "error": error, "meta_title": "New page"})
 
     @app.post("/new")
     def new_create(request: Request, slug: str = Form("")):
@@ -112,7 +138,8 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         slug = slug.strip().strip("/")
         if not slug:
             return templates.TemplateResponse(
-                request, "new.html", {"user": p, "error": "Please enter a slug."})
+                request, "new.html",
+                {"user": p, "error": "Please enter a slug.", "meta_title": "New page"})
         return RedirectResponse(f"/{slug}/edit", status_code=303)
 
     @app.get("/{slug:path}/edit", response_class=HTMLResponse)
@@ -122,7 +149,8 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
             return RedirectResponse("/login", status_code=307)
         page = service.get(slug)
         return templates.TemplateResponse(request, "edit.html", {
-            "slug": slug, "page": page, "user": p})
+            "slug": slug, "page": page, "user": p,
+            "meta_title": f"Edit {slug}"})
 
     @app.post("/{slug:path}/delete")
     def delete(request: Request, slug: str):
@@ -150,14 +178,18 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
 
     @app.get("/{slug:path}", response_class=HTMLResponse)
     def view(request: Request, slug: str):
-        p = current(request)
+        p, authed = viewer(request)
         if p is None:
             return RedirectResponse("/login", status_code=307)
         html = service.render(slug)
         if html is None:
+            # Missing page → editors go to the editor (which prompts login for
+            # anonymous/guest viewers).
             return RedirectResponse(f"/{slug}/edit", status_code=307)
         page = service.get(slug)
         return templates.TemplateResponse(request, "page.html", {
-            "slug": slug, "html": html, "page": page, "user": p})
+            "slug": slug, "html": html, "page": page,
+            "meta_title": page.title, "meta_description": plain_summary(page.body),
+            **_common(p, authed)})
 
     return app

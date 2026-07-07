@@ -3,7 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}wiskill{% endblock %} · wiskill</title>
+
+  {% set _title = meta_title|default('wiskill') %}
+  {% set _desc = meta_description|default('A personal semantic wiki — Markdown notes with fast hybrid lexical + semantic search.') %}
+  <title>{{ _title }} · wiskill</title>
+  <meta name="description" content="{{ _desc }}">
+  <meta name="robots" content="{{ 'index, follow' if public|default(false) else 'noindex, nofollow' }}">
+  <meta name="theme-color" content="#12665a">
+  <link rel="canonical" href="{{ request.url.scheme }}://{{ request.url.netloc }}{{ request.url.path }}">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="wiskill">
+  <meta property="og:title" content="{{ _title }}">
+  <meta property="og:description" content="{{ _desc }}">
+  <meta property="og:url" content="{{ request.url.scheme }}://{{ request.url.netloc }}{{ request.url.path }}">
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="{{ _title }}">
+  <meta name="twitter:description" content="{{ _desc }}">
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Spline+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -12,18 +32,18 @@
 </head>
 <body class="{% if not user %}is-auth{% endif %}">
 {% if user %}
+  {% set can_edit = user.role.value in ['editor', 'admin'] %}
   <aside class="sidebar">
     <div class="sidebar-top">
       <a href="/" class="brand"><span class="brand-mark">✦</span> wiskill</a>
-      <a href="/new" class="new-btn" title="New page">＋ New</a>
+      {% if can_edit %}<a href="/new" class="new-btn" title="New page">＋ New</a>{% endif %}
     </div>
     <form action="/search" method="get" class="search" role="search">
       <input name="q" placeholder="Search notes…" value="{{ q|default('') }}" autocomplete="off">
     </form>
     <nav class="tree" aria-label="Pages">
       <div class="tree-label">Pages</div>
-      {% set pages = nav_pages() %}
-      {% for s in pages %}
+      {% for s in nav_pages() %}
         {% set depth = s.split('/')|length - 1 %}
         <a href="/{{ s }}" class="tree-item{% if s == slug|default('') %} active{% endif %}" style="--depth:{{ depth }}">
           <span class="tree-leaf">{{ s.split('/')|last }}</span>
@@ -33,12 +53,42 @@
       {% endfor %}
     </nav>
     <div class="sidebar-foot">
-      <span class="who">{{ user.username }} · {{ user.role.value }}</span>
-      <a href="/logout">Sign out</a>
+      {% if authenticated|default(true) %}
+        <span class="who">{{ user.username }} · {{ user.role.value }}</span>
+        <a href="/logout">Sign out</a>
+      {% else %}
+        <span class="who">Viewing as guest</span>
+        <a href="/login">Sign in</a>
+      {% endif %}
     </div>
   </aside>
 {% endif %}
-  <main class="main">{% block content %}{% endblock %}</main>
+  <div class="content-wrap">
+    <main class="main">{% block content %}{% endblock %}</main>
+    {% if user %}
+    <footer class="site-footer">
+      <div class="foot-cols">
+        <div>
+          <span class="foot-brand"><span class="brand-mark">✦</span> wiskill</span>
+          <p class="foot-tag">A personal semantic notebook.</p>
+        </div>
+        <nav class="foot-links" aria-label="Footer">
+          <a href="/">Home</a>
+          <a href="/projects">Projects</a>
+          <a href="/search">Search</a>
+        </nav>
+        <nav class="foot-links" aria-label="Project">
+          <a href="https://github.com/semlix/wiskill" rel="noopener">wiskill on GitHub</a>
+          <a href="https://github.com/semlix/semlix" rel="noopener">Powered by semlix</a>
+        </nav>
+      </div>
+      <div class="foot-bottom">
+        <span>Markdown · lexical + semantic search</span>
+        <span>© 2026 · built with wiskill</span>
+      </div>
+    </footer>
+    {% endif %}
+  </div>
 {% block scripts %}{% endblock %}
 </body>
 </html>

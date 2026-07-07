@@ -96,8 +96,31 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
   font-size: .78rem; color: var(--ink-soft);
 }
 
-/* ---------- Main ---------- */
-.main { padding: 3rem clamp(1.25rem, 5vw, 4rem) 5rem; max-width: 900px; }
+/* ---------- Main + footer column ---------- */
+.content-wrap { display: flex; flex-direction: column; min-height: 100vh; }
+/* Left-aligned (not centered) so content hugs the sidebar; wide but capped for
+   readable line length on very large screens. */
+.main { flex: 1 0 auto; width: 100%; max-width: 1040px; margin: 0;
+  padding: 3rem clamp(1.25rem, 4vw, 3.5rem) 4rem; }
+
+.site-footer {
+  flex-shrink: 0; margin-top: 2rem;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--paper-2) 60%, transparent));
+  padding: 2rem clamp(1.25rem, 5vw, 4rem);
+  font-size: .85rem; color: var(--ink-soft);
+}
+.foot-cols { display: flex; flex-wrap: wrap; gap: 2rem 3rem; width: 100%; }
+.foot-cols > div:first-child { flex: 1 1 220px; min-width: 180px; }
+.foot-links { flex: 0 0 auto; }
+.foot-brand { font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 1.15rem; color: var(--ink); }
+.foot-tag { margin: .3rem 0 0; }
+.foot-links { display: flex; flex-direction: column; gap: .35rem; }
+.foot-links a { color: var(--ink-soft); }
+.foot-links a:hover { color: var(--accent); }
+.foot-bottom { width: 100%; margin: 1.6rem 0 0; padding-top: 1rem;
+  border-top: 1px dotted var(--line); display: flex; justify-content: space-between;
+  flex-wrap: wrap; gap: .5rem; font-size: .78rem; opacity: .85; }
 
 .breadcrumb { font-size: .8rem; color: var(--ink-soft); margin-bottom: .6rem; letter-spacing: .02em; }
 .breadcrumb a { color: var(--ink-soft); }

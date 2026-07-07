@@ -12,6 +12,13 @@ def test_defaults_when_no_file():
     assert cfg.provider == "sentence-transformers"
     assert cfg.vector_store == "numpy"
     assert cfg.session_secret_env == "WISKILL_SECRET"
+    assert cfg.public_read is False
+
+
+def test_public_read_parsed(tmp_path):
+    cfg_file = tmp_path / "wiskill.toml"
+    cfg_file.write_text("[web]\npublic_read = true\n")
+    assert load_config(cfg_file).public_read is True
 
 
 def test_loads_toml_and_resolves_paths(tmp_path):

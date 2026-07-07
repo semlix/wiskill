@@ -31,6 +31,18 @@ _md.add_render_rule("s_open", lambda self, tokens, idx, options, env: "<del>")
 _md.add_render_rule("s_close", lambda self, tokens, idx, options, env: "</del>")
 
 
+def plain_summary(body: str, limit: int = 155) -> str:
+    """A plain-text one-line summary of a Markdown body, for meta descriptions.
+    Strips common Markdown/wikilink syntax and collapses whitespace."""
+    text = _WIKILINK.sub(lambda m: (m.group(2) or m.group(1)).strip(), body)
+    text = re.sub(r"[#>*_`~\[\]!]", " ", text)          # markdown punctuation
+    text = re.sub(r"\((?:https?://)?[^)]*\)", " ", text)  # link targets
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) > limit:
+        text = text[:limit].rsplit(" ", 1)[0] + "…"
+    return text
+
+
 def extract_wikilinks(body: str) -> list[str]:
     seen: list[str] = []
     for m in _WIKILINK.finditer(body):

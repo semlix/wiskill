@@ -48,6 +48,33 @@ def test_search_route(client):
     assert r.status_code == 200 and "foo" in r.text.lower()
 
 
+@pytest.fixture
+def public_client(tmp_path, monkeypatch):
+    from wiskill.auth import Principal, Role
+    monkeypatch.setenv("WISKILL_SECRET", "s")
+    store = PageStore(tmp_path / "pages")
+    backend = LexicalBackend(tmp_path / "idx")
+    service = WikiService(store, backend)
+    service.save("index", "public home body qpub", title="Home", tags=[],
+                 principal=Principal("seed", Role.EDITOR))
+    users = UserStore(tmp_path / "users.json")
+    app = create_app(service, users, WiskillConfig(public_read=True))
+    return TestClient(app)
+
+
+def test_public_read_allows_anonymous_view_and_search(public_client):
+    r = public_client.get("/")  # no login
+    assert r.status_code == 200 and "public home body qpub" in r.text
+    assert public_client.get("/search", params={"q": "public"}).status_code == 200
+
+
+def test_public_read_still_blocks_anonymous_edit(public_client):
+    r = public_client.post("/index", data={"title": "x", "tags": "", "body": "y"},
+                           follow_redirects=False)
+    assert r.status_code in (302, 303, 307)
+    assert "/login" in r.headers["location"]
+
+
 def test_home_renders_index_page(client):
     _login(client)
     client.post("/index", data={"title": "Home", "tags": "", "body": "welcome body zzz"},

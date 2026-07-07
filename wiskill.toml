@@ -3,7 +3,7 @@ pages = "data/pages"
 index = "data/index"
 
 [search]
-mode = "hybrid"          # lexical | semantic | hybrid
+mode = "lexical"          # lexical | semantic | hybrid
 lexical_engine = "core"  # core | bm25
 alpha = 0.5
 fusion = "rrf"           # rrf | linear | dbsf
@@ -18,3 +18,8 @@ users_file = "data/users.json"
 apikeys_file = "data/apikeys.json"
 session_secret_env = "WISKILL_SECRET"
 session_ttl_hours = 168
+
+[web]
+# Let anyone view + search without logging in (editing still needs an account).
+# Set false to require login for everything.
+public_read = true

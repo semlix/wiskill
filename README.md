@@ -126,6 +126,13 @@ mcp` — no manual `export` each time.
 Read/search need `reader`; create/edit/delete need `editor`; managing users and
 keys needs `admin`.
 
+**Public (anonymous) read.** Set `public_read = true` under `[web]` in
+`wiskill.toml` to let anyone **view and search without logging in** — editing,
+creating, and deleting still require an account (editor). The UI hides the edit
+controls for guests, and pages are marked `robots: index, follow` only when
+public read is on (otherwise `noindex`). With `public_read = false` (default),
+login is required for everything.
+
 **Web** — multi-user, session cookie:
 
 ```bash

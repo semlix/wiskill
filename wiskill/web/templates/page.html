@@ -14,10 +14,12 @@
 {% if page.tags %}<p class="tags">{% for t in page.tags %}<span>#{{ t }}</span>{% endfor %}</p>{% endif %}
 <hr class="rule">
 <article class="prose">{{ html|safe }}</article>
+{% if user and user.role.value in ['editor', 'admin'] %}
 <div class="actions">
   <a class="btn btn-primary" href="/{{ slug }}/edit">Edit</a>
   <form action="/{{ slug }}/delete" method="post" onsubmit="return confirm('Delete this page?')">
     <button class="btn btn-danger" type="submit">Delete</button>
   </form>
 </div>
+{% endif %}
 {% endblock %}

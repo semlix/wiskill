@@ -79,8 +79,14 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         p = current(request)
         if p is None:
             return RedirectResponse("/login", status_code=307)
-        return templates.TemplateResponse(
-            request, "index.html", {"slugs": service.list_pages(), "user": p})
+        # Home renders the "index" wiki page (DokuWiki-style start page). If it
+        # doesn't exist yet, fall back to a page listing with a create prompt.
+        html = service.render("index")
+        if html is None:
+            return templates.TemplateResponse(
+                request, "index.html", {"slugs": service.list_pages(), "user": p})
+        return templates.TemplateResponse(request, "page.html", {
+            "slug": "index", "html": html, "page": service.get("index"), "user": p})
 
     @app.get("/search", response_class=HTMLResponse)
     def search(request: Request, q: str = ""):

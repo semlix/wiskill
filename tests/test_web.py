@@ -48,6 +48,15 @@ def test_search_route(client):
     assert r.status_code == 200 and "foo" in r.text.lower()
 
 
+def test_home_renders_index_page(client):
+    _login(client)
+    client.post("/index", data={"title": "Home", "tags": "", "body": "welcome body zzz"},
+                follow_redirects=False)
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "welcome body zzz" in r.text  # renders the index page, not a listing
+
+
 def test_new_page_flow(client):
     _login(client)
     # empty slug re-renders the form (does not 500)

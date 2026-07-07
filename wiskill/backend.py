@@ -41,6 +41,14 @@ def content_for(page: Page) -> str:
     return f"{page.title}\n{page.body}"
 
 
+def _doc_fields_bm25(page: Page) -> dict:
+    """Stored fields for the bm25 engine, which JSON-serializes them: the
+    DATETIME must be a compact string, not a datetime object."""
+    fields = _doc_fields(page)
+    fields["updated"] = page.updated.strftime("%Y%m%d%H%M%S")
+    return fields
+
+
 def _doc_fields(page: Page) -> dict:
     return {
         "slug": page.slug,
@@ -52,14 +60,21 @@ def _doc_fields(page: Page) -> dict:
 
 
 class LexicalBackend:
-    """Pure lexical search over a semlix core FileIndex."""
+    """Pure lexical search over semlix: the core FileIndex (default) or the
+    fast bm25s engine. bm25 is bag-of-words (no highlighted snippets), so
+    snippets fall back to a plain excerpt."""
 
     def __init__(self, index_dir: Path, engine: str = "core"):
-        if engine != "core":
-            raise ValueError(f"LexicalBackend supports engine='core', got {engine!r}")
+        if engine not in ("core", "bm25"):
+            raise ValueError(f"LexicalBackend engine must be 'core' or 'bm25', got {engine!r}")
+        self.engine = engine
         self.index_dir = Path(index_dir)
         self.index_dir.mkdir(parents=True, exist_ok=True)
-        if semlix_index.exists_in(str(self.index_dir)):
+        if engine == "bm25":
+            if BM25Index is None:
+                raise RuntimeError("lexical_engine='bm25' needs `pip install bm25s PyStemmer`")
+            self.ix = BM25Index(str(self.index_dir), WHOOSH_SCHEMA)
+        elif semlix_index.exists_in(str(self.index_dir)):
             self.ix = semlix_index.open_dir(str(self.index_dir))
         else:
             self.ix = semlix_index.create_in(str(self.index_dir), WHOOSH_SCHEMA)
@@ -71,7 +86,8 @@ class LexicalBackend:
         return self._writer
 
     def index_page(self, page: Page) -> None:
-        self._w().update_document(**_doc_fields(page))
+        fields = _doc_fields_bm25(page) if self.engine == "bm25" else _doc_fields(page)
+        self._w().update_document(**fields)
 
     def remove_page(self, slug: str) -> None:
         self._w().delete_by_term("slug", slug)
@@ -85,13 +101,25 @@ class LexicalBackend:
         return self.ix.doc_count()
 
     def search(self, query: str, limit: int = 10) -> list[SearchResult]:
-        parser = MultifieldParser(["title", "content"], schema=self.ix.schema)
-        q = parser.parse(query)
         out: list[SearchResult] = []
         with self.ix.searcher() as s:
-            hits = s.search(q, limit=limit)
+            if self.engine == "bm25":
+                # bm25s is bag-of-words; it takes the raw query text.
+                hits = s.search(query, limit=limit)
+            else:
+                q = MultifieldParser(["title", "content"], schema=self.ix.schema).parse(query)
+                hits = s.search(q, limit=limit)
             for hit in hits:
-                snippet = hit.highlights("content") or (hit.get("content", "")[:200])
+                # bm25s returns the top-k ranked docs including non-matches
+                # (score 0); keep only real matches.
+                if self.engine == "bm25" and hit.score <= 0:
+                    continue
+                # Highlighting needs positions (core only); bm25 → plain excerpt.
+                snippet = ""
+                if self.engine == "core":
+                    snippet = hit.highlights("content")
+                if not snippet:
+                    snippet = str(hit.get("content", ""))[:200]
                 out.append(SearchResult(
                     slug=hit["slug"],
                     title=hit.get("title", hit["slug"]),

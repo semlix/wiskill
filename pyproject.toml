@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "semlix-wiskill"
+version = "0.1.0"
+description = "A DokuWiki-style personal wiki backed by semlix (lexical + semantic search)."
+requires-python = ">=3.11"
+license = { text = "BSD-2-Clause" }
+authors = [{ name = "Alberto Ferrer" }]
+dependencies = [
+    "semlix>=3.2",
+    "numpy",                 # NumpyVectorStore + fake embedder in tests
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "jinja2>=3.1",
+    "python-multipart",      # FastAPI form parsing (login, edit)
+    "itsdangerous",          # Starlette SessionMiddleware signing
+    "markdown-it-py>=3.0",
+    "mdit-py-plugins>=0.4",  # GFM: tables, strikethrough, tasklists
+    "pyyaml>=6.0",           # front-matter
+]
+
+[project.optional-dependencies]
+semantic = ["sentence-transformers"]
+bm25 = ["bm25s", "PyStemmer"]
+mcp = ["mcp>=1.0"]
+dev = ["pytest>=8.0", "httpx"]      # httpx: FastAPI TestClient
+
+[project.scripts]
+wiskill = "wiskill.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["wiskill*"]
+
+[tool.pytest.ini_options]
+addopts = "-rs --tb=short"
+testpaths = ["tests"]
+markers = ["slow: needs a real embedding model download"]

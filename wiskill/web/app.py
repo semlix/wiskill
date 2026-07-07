@@ -36,6 +36,24 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
 
     app = FastAPI(title="semlix-wiskill", lifespan=lifespan)
     secret = os.environ.get(config.session_secret_env, "dev-insecure-secret")
+
+    # Gate the MCP endpoint with an API key when configured (it is otherwise
+    # unauthenticated — a trusted-local editor). Runs before routing; only
+    # affects /mcp paths.
+    if getattr(config, "mcp_require_key", False) and apikeys is not None:
+        from fastapi.responses import JSONResponse
+
+        @app.middleware("http")
+        async def _require_mcp_key(request: Request, call_next):
+            if request.url.path.startswith("/mcp"):
+                auth = request.headers.get("authorization", "")
+                key = auth[7:].strip() if auth.lower().startswith("bearer ") \
+                    else request.headers.get("x-api-key", "").strip()
+                principal = apikeys.verify(key) if key else None
+                if principal is None or not principal.role.allows(Role.EDITOR):
+                    return JSONResponse({"detail": "invalid or missing API key"}, status_code=401)
+            return await call_next(request)
+
     app.add_middleware(
         SessionMiddleware, secret_key=secret,
         max_age=config.session_ttl_hours * 3600,

@@ -22,6 +22,7 @@ class WiskillConfig:
     session_secret_env: str = "WISKILL_SECRET"
     session_ttl_hours: int = 168
     public_read: bool = False   # allow anonymous view + search (no login to read)
+    mcp_require_key: bool = False  # require an API key on /mcp when served over HTTP
 
 
 def load_config(path: str | Path | None = None) -> WiskillConfig:
@@ -67,4 +68,5 @@ def load_config(path: str | Path | None = None) -> WiskillConfig:
         session_secret_env=auth.get("session_secret_env", defaults.session_secret_env),
         session_ttl_hours=int(auth.get("session_ttl_hours", defaults.session_ttl_hours)),
         public_read=bool(web.get("public_read", defaults.public_read)),
+        mcp_require_key=bool(web.get("mcp_require_key", defaults.mcp_require_key)),
     )

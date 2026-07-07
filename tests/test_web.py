@@ -95,6 +95,28 @@ def test_new_page_flow(client):
     assert r.headers["location"] == "/projects/idea/edit"
 
 
+def test_mcp_require_key_gates_mcp_endpoint(tmp_path, monkeypatch):
+    pytest.importorskip("mcp")
+    monkeypatch.setenv("WISKILL_SECRET", "s")
+    from wiskill.mcp.server import build_mcp
+    from wiskill.auth import ApiKeyStore, Principal, Role
+    service = WikiService(PageStore(tmp_path / "p"), LexicalBackend(tmp_path / "i"))
+    users = UserStore(tmp_path / "u.json")
+    keys = ApiKeyStore(tmp_path / "k.json")
+    editor_key = keys.create("llm", Role.EDITOR)
+    reader_key = keys.create("r", Role.READER)
+    mcp = build_mcp(service, Principal("bot", Role.EDITOR), stateless=True, http_path="/")
+    app = create_app(service, users, WiskillConfig(mcp_require_key=True),
+                     apikeys=keys, mcp_server=mcp)
+    # `with` runs the app lifespan so the MCP session manager is initialized.
+    with TestClient(app) as c:
+        assert c.post("/mcp/", json={}).status_code == 401                                  # no key
+        assert c.post("/mcp/", json={}, headers={"X-API-Key": reader_key}).status_code == 401  # reader < editor
+        # a valid editor key passes the gate (the MCP app may reject the empty
+        # body, but not with 401)
+        assert c.post("/mcp/", json={}, headers={"Authorization": f"Bearer {editor_key}"}).status_code != 401
+
+
 def test_serve_with_mcp_mounts_endpoint(tmp_path):
     pytest.importorskip("mcp")
     from wiskill.mcp.server import build_mcp

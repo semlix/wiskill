@@ -1,0 +1,17 @@
+# wiskill — production compose. Runs on the VPS, joined to the existing
+# `openremedy_public` network so the OpenRemedy Caddy can reach it as
+# `wiskill:8000`. No host port is published (only reachable via Caddy).
+services:
+  wiskill:
+    image: ghcr.io/semlix/wiskill:${WISKILL_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data                       # pages (source of truth) + index
+      - ./wiskill.toml:/app/wiskill.toml:ro
+    networks:
+      - openremedy_public
+
+networks:
+  openremedy_public:
+    external: true

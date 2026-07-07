@@ -1,0 +1,14 @@
+.git
+.venv
+data
+docs
+skill
+tests
+benchmark
+stress
+__pycache__
+*.pyc
+.pytest_cache
+.env
+.mcp.json
+uv.lock

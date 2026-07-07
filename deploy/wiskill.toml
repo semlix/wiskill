@@ -1,0 +1,26 @@
+# Production config for the VPS. Mounted read-only into the container at
+# /app/wiskill.toml. Paths are relative to /app (where ./data is mounted).
+[paths]
+pages = "data/pages"
+index = "data/index"
+
+[search]
+mode = "hybrid"
+lexical_engine = "core"
+alpha = 0.5
+fusion = "rrf"
+
+[semantic]
+provider = "sentence-transformers"
+model = "all-MiniLM-L6-v2"
+vector_store = "numpy"
+
+[auth]
+users_file = "data/users.json"
+apikeys_file = "data/apikeys.json"
+session_secret_env = "WISKILL_SECRET"
+session_ttl_hours = 168
+
+[web]
+public_read = true       # anonymous view + search; editing needs an account
+mcp_require_key = true    # /mcp requires a valid editor API key

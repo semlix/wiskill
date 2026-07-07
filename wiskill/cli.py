@@ -22,6 +22,8 @@ def _service(config):
 
 
 def main(argv: list[str] | None = None) -> int:
+    from wiskill._setup import quiet_ml_noise
+    quiet_ml_noise()
     parser = argparse.ArgumentParser(prog="wiskill")
     parser.add_argument("--config", default=_default_config_path())
     sub = parser.add_subparsers(dest="cmd", required=True)

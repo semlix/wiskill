@@ -73,6 +73,24 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None) -> 
         return templates.TemplateResponse(
             request, "search.html", {"q": q, "results": results, "user": p})
 
+    @app.get("/new", response_class=HTMLResponse)
+    def new_form(request: Request, error: str | None = None):
+        p = current(request)
+        if p is None:
+            return RedirectResponse("/login", status_code=307)
+        return templates.TemplateResponse(request, "new.html", {"user": p, "error": error})
+
+    @app.post("/new")
+    def new_create(request: Request, slug: str = Form("")):
+        p = current(request)
+        if p is None:
+            return RedirectResponse("/login", status_code=307)
+        slug = slug.strip().strip("/")
+        if not slug:
+            return templates.TemplateResponse(
+                request, "new.html", {"user": p, "error": "Please enter a slug."})
+        return RedirectResponse(f"/{slug}/edit", status_code=303)
+
     @app.get("/{slug:path}/edit", response_class=HTMLResponse)
     def edit_form(request: Request, slug: str):
         p = current(request)

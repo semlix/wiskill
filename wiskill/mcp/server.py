@@ -82,13 +82,24 @@ def _resolve_principal(config) -> Principal:
 
 
 def run_stdio(config_path: str | None = None) -> None:
+    import contextlib
+    import sys
+
+    from wiskill._setup import quiet_ml_noise
+    quiet_ml_noise()
+
     from wiskill.config import load_config
     from wiskill.service import WikiService
     from wiskill.store import PageStore
     from wiskill.backend import build_backend
 
     config = load_config(config_path)
-    service = WikiService(PageStore(config.pages_dir), build_backend(config))
-    service.reindex()  # sync any external edits before serving
+    # Build the backend (may load an embedding model) with stdout redirected to
+    # stderr: an MCP stdio server speaks JSON-RPC on stdout, so any model/loader
+    # chatter printed there would corrupt the protocol. Warnings/progress go to
+    # stderr, which MCP clients treat as logs.
+    with contextlib.redirect_stdout(sys.stderr):
+        service = WikiService(PageStore(config.pages_dir), build_backend(config))
+        service.reindex()  # sync any external edits before serving
     principal = _resolve_principal(config)
     build_mcp(service, principal).run()  # stdio transport by default

@@ -48,6 +48,17 @@ def test_search_route(client):
     assert r.status_code == 200 and "foo" in r.text.lower()
 
 
+def test_new_page_flow(client):
+    _login(client)
+    # empty slug re-renders the form (does not 500)
+    r = client.post("/new", data={"slug": ""}, follow_redirects=False)
+    assert r.status_code == 200
+    # a real slug redirects to that page's editor
+    r = client.post("/new", data={"slug": "projects/idea"}, follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"] == "/projects/idea/edit"
+
+
 def test_bad_credentials(client):
     r = client.post("/login", data={"username": "ed", "password": "nope"})
     assert r.status_code == 200

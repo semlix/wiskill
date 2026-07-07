@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}New page{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="/">Home</a> <span class="sep">/</span> New page</div>
+<h1 class="page-title">New page</h1>
+<hr class="rule">
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<form action="/new" method="post" class="edit">
+  <div class="field">
+    <label for="slug">Slug <span style="text-transform:none;letter-spacing:0">— use <code>/</code> for namespaces, e.g. <code>projects/semlix</code></span></label>
+    <input id="slug" name="slug" autofocus autocomplete="off" placeholder="notes/my-idea">
+  </div>
+  <div class="editor-actions">
+    <button class="btn btn-primary" type="submit">Continue →</button>
+    <a class="btn" href="/">Cancel</a>
+  </div>
+</form>
+{% endblock %}

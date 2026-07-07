@@ -39,3 +39,6 @@ include = ["wiskill*"]
 addopts = "-rs --tb=short"
 testpaths = ["tests"]
 markers = ["slow: needs a real embedding model download"]
+filterwarnings = [
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]

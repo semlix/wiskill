@@ -102,4 +102,7 @@ def run_stdio(config_path: str | None = None) -> None:
         service = WikiService(PageStore(config.pages_dir), build_backend(config))
         service.reindex()  # sync any external edits before serving
     principal = _resolve_principal(config)
-    build_mcp(service, principal).run()  # stdio transport by default
+    try:
+        build_mcp(service, principal).run()  # stdio transport by default
+    except KeyboardInterrupt:
+        pass  # Ctrl-C is the normal way to stop a stdio server; exit quietly.

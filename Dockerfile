@@ -1,6 +1,7 @@
 # wiskill — hybrid (lexical + semantic) wiki service.
 # The all-MiniLM embedding model is baked in so startup needs no network.
 FROM python:3.12-slim
+LABEL org.opencontainers.image.source="https://github.com/semlix/wiskill"
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -17,7 +18,10 @@ WORKDIR /app
 # Install dependencies first (better layer caching): copy metadata, then source.
 COPY pyproject.toml README.md ./
 COPY wiskill ./wiskill
-RUN uv pip install --system -e ".[semantic,mcp]"
+# CPU-only torch first — the VPS has no GPU; the default PyPI wheel pulls
+# several GB of unused CUDA/nvidia packages.
+RUN uv pip install --system torch --index-url https://download.pytorch.org/whl/cpu \
+    && uv pip install --system -e ".[semantic,mcp]"
 
 # Bake the default embedding model into the image's HF cache.
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"

@@ -1,6 +1,8 @@
 """SearchBackend: wraps semlix (lexical / semantic / hybrid) over the wiki."""
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -211,3 +213,49 @@ def _build_provider(config):
         from semlix.semantic import CohereProvider
         return CohereProvider(model=config.model)
     raise ValueError(f"unknown provider: {config.provider!r}")
+
+
+def _manifest_path(backend) -> Path:
+    return Path(backend.index_dir) / "manifest.json"
+
+
+def _load_manifest(backend) -> dict:
+    p = _manifest_path(backend)
+    if p.exists():
+        return json.loads(p.read_text(encoding="utf-8"))
+    return {}
+
+
+def _save_manifest(backend, manifest: dict) -> None:
+    _manifest_path(backend).write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def reconcile(backend, store) -> dict:
+    """Sync the index to disk: reindex changed pages, drop deleted ones."""
+    manifest = _load_manifest(backend)
+    on_disk = {}
+    indexed = 0
+    for page in store.iter_pages():
+        digest = hashlib.sha256(content_for(page).encode("utf-8")).hexdigest()
+        on_disk[page.slug] = digest
+        if manifest.get(page.slug) != digest:
+            backend.index_page(page)
+            indexed += 1
+    removed = 0
+    for slug in list(manifest):
+        if slug not in on_disk:
+            backend.remove_page(slug)
+            removed += 1
+    if indexed or removed:
+        backend.commit()
+    _save_manifest(backend, on_disk)
+    return {"indexed": indexed, "removed": removed}
+
+
+def update_manifest_entry(backend, slug: str, page) -> None:
+    manifest = _load_manifest(backend)
+    if page is None:
+        manifest.pop(slug, None)
+    else:
+        manifest[slug] = hashlib.sha256(content_for(page).encode("utf-8")).hexdigest()
+    _save_manifest(backend, manifest)

@@ -21,6 +21,17 @@ def test_public_read_parsed(tmp_path):
     assert load_config(cfg_file).public_read is True
 
 
+def test_mcp_allowed_hosts_parsed(tmp_path):
+    cfg_file = tmp_path / "wiskill.toml"
+    cfg_file.write_text('[web]\nmcp_allowed_hosts = ["wiskill.barrahome.org"]\n')
+    cfg = load_config(cfg_file)
+    assert cfg.mcp_allowed_hosts == ("wiskill.barrahome.org",)
+
+
+def test_mcp_allowed_hosts_default_empty():
+    assert load_config(None).mcp_allowed_hosts == ()
+
+
 def test_loads_toml_and_resolves_paths(tmp_path):
     cfg_file = tmp_path / "wiskill.toml"
     cfg_file.write_text(

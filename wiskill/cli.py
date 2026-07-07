@@ -106,7 +106,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.with_mcp:
             from wiskill.mcp.server import _resolve_principal, build_mcp
             mcp_server = build_mcp(service, _resolve_principal(config),
-                                   stateless=True, http_path="/")
+                                   stateless=True, http_path="/",
+                                   allowed_hosts=config.mcp_allowed_hosts)
             print(f"MCP mounted at http://{args.host}:{args.port}/mcp", flush=True)
         app = create_app(service, users, config, apikeys=keys, mcp_server=mcp_server)
         uvicorn.run(app, host=args.host, port=args.port)

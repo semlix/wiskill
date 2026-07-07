@@ -47,14 +47,29 @@ class WikiTools:
 
 
 def build_mcp(service, principal: Principal, host: str = "127.0.0.1", port: int = 8765,
-              stateless: bool = False, http_path: str = "/mcp"):
+              stateless: bool = False, http_path: str = "/mcp", allowed_hosts=()):
     """Build the FastMCP server. For mounting inside another ASGI app (e.g. the
     web server), pass ``stateless=True`` and ``http_path='/'`` and mount its
-    ``streamable_http_app()`` under a prefix."""
+    ``streamable_http_app()`` under a prefix.
+
+    ``allowed_hosts``: Host header values the MCP SDK's own DNS-rebinding
+    check accepts (e.g. your public domain when served over HTTP behind a
+    reverse proxy). Empty disables that check entirely — safe here because
+    wiskill's own API-key gate (``mcp_require_key``) already authenticates
+    every request; the SDK check is defense-in-depth on top of it, not a
+    substitute for it.
+    """
     from mcp.server.fastmcp import FastMCP
+    from mcp.server.transport_security import TransportSecuritySettings
     tools = WikiTools(service, principal)
+    security = TransportSecuritySettings(
+        enable_dns_rebinding_protection=bool(allowed_hosts),
+        allowed_hosts=list(allowed_hosts),
+        allowed_origins=[f"https://{h}" for h in allowed_hosts],
+    )
     mcp = FastMCP("wiskill", host=host, port=port,
-                  stateless_http=stateless, streamable_http_path=http_path)
+                  stateless_http=stateless, streamable_http_path=http_path,
+                  transport_security=security)
 
     @mcp.tool()
     def wiki_search(query: str, limit: int = 10) -> list[dict]:
@@ -145,7 +160,8 @@ def run_server(config_path: str | None = None, transport: str = "stdio",
         service = _build()
 
     principal = _resolve_principal(config)
-    mcp = build_mcp(service, principal, host=host, port=port)
+    mcp = build_mcp(service, principal, host=host, port=port,
+                    allowed_hosts=config.mcp_allowed_hosts)
     try:
         mcp.run(transport=_TRANSPORTS[transport])
     except KeyboardInterrupt:

@@ -29,7 +29,9 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("init")
-    sub.add_parser("reindex")
+    reindex_p = sub.add_parser("reindex")
+    reindex_p.add_argument("--rebuild", action="store_true",
+                           help="delete the index and rebuild it from the .md files")
     mcp = sub.add_parser("mcp")
     mcp.add_argument("--transport", choices=["stdio", "http", "sse"], default="stdio",
                      help="stdio (default), http (Streamable HTTP), or sse (legacy)")
@@ -78,6 +80,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "reindex":
+        if args.rebuild and config.index_dir.exists():
+            import shutil
+            shutil.rmtree(config.index_dir)   # drop stale index + manifest
         stats = _service(config).reindex()
         print(f"reindex: indexed={stats['indexed']} removed={stats['removed']}")
         return 0

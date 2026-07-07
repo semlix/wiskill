@@ -21,6 +21,16 @@ def test_init_and_reindex(tmp_path, capsys):
     assert "indexed" in capsys.readouterr().out
 
 
+def test_reindex_rebuild(tmp_path, capsys):
+    cfg = _cfg(tmp_path)
+    assert main(["--config", cfg, "init"]) == 0
+    capsys.readouterr()
+    # --rebuild wipes the index and reindexes every page from disk.
+    assert main(["--config", cfg, "reindex", "--rebuild"]) == 0
+    out = capsys.readouterr().out
+    assert "indexed=1" in out  # the seed index page rebuilt from scratch
+
+
 def test_user_add_and_list(tmp_path, capsys):
     cfg = _cfg(tmp_path)
     assert main(["--config", cfg, "user", "add", "alice", "--role", "admin", "--password", "pw"]) == 0

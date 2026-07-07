@@ -46,6 +46,6 @@ def verify_password(pw: str, stored: str) -> bool:
             return False
         dk = hashlib.scrypt(pw.encode("utf-8"), salt=bytes.fromhex(salt_hex),
                             n=int(n), r=int(r), p=int(p))
+        return hmac.compare_digest(dk, bytes.fromhex(hash_hex))
     except (ValueError, TypeError):
         return False
-    return hmac.compare_digest(dk.hex(), hash_hex)

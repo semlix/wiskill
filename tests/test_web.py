@@ -59,6 +59,19 @@ def test_new_page_flow(client):
     assert r.headers["location"] == "/projects/idea/edit"
 
 
+def test_serve_with_mcp_mounts_endpoint(tmp_path):
+    pytest.importorskip("mcp")
+    from wiskill.mcp.server import build_mcp
+    from wiskill.auth import Principal, Role
+    store = PageStore(tmp_path / "pages")
+    backend = LexicalBackend(tmp_path / "idx")
+    service = WikiService(store, backend)
+    users = UserStore(tmp_path / "users.json")
+    mcp = build_mcp(service, Principal("bot", Role.EDITOR), stateless=True, http_path="/")
+    app = create_app(service, users, WiskillConfig(), mcp_server=mcp)
+    assert "/mcp" in [getattr(r, "path", None) for r in app.routes]
+
+
 def test_bad_credentials(client):
     r = client.post("/login", data={"username": "ed", "password": "nope"})
     assert r.status_code == 200

@@ -178,8 +178,29 @@ Missing/invalid key → `401`; insufficient role → `403`; missing page → `40
 
 ## MCP (use the wiki from an LLM)
 
-The MCP server exposes five tools over stdio: `wiki_search`, `wiki_read`,
-`wiki_write`, `wiki_list`, `wiki_delete`.
+The MCP server exposes five tools: `wiki_search`, `wiki_read`, `wiki_write`,
+`wiki_list`, `wiki_delete`.
+
+### Web + MCP in one process (recommended)
+
+Run the web UI, JSON API, **and** MCP from a single process so they share one
+backend (index + vector store). This is the correct way when using `hybrid`
+mode — two separate processes would each keep their own in-memory vector store
+and clobber each other's writes.
+
+```bash
+uv run wiskill serve --with-mcp             # web at :8000, MCP at :8000/mcp/
+```
+
+Register it in Claude Code (note the trailing slash):
+
+```bash
+claude mcp add --transport http wiskill http://127.0.0.1:8000/mcp/
+```
+
+A page written via MCP is instantly visible in the web UI (and vice-versa),
+because both go through the same `WikiService`.
+
 
 **1. Generate a key (optional).**
 

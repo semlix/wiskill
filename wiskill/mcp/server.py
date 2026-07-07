@@ -37,10 +37,15 @@ class WikiTools:
         return self.service.remove(slug, principal=self.principal)
 
 
-def build_mcp(service, principal: Principal, host: str = "127.0.0.1", port: int = 8765):
+def build_mcp(service, principal: Principal, host: str = "127.0.0.1", port: int = 8765,
+              stateless: bool = False, http_path: str = "/mcp"):
+    """Build the FastMCP server. For mounting inside another ASGI app (e.g. the
+    web server), pass ``stateless=True`` and ``http_path='/'`` and mount its
+    ``streamable_http_app()`` under a prefix."""
     from mcp.server.fastmcp import FastMCP
     tools = WikiTools(service, principal)
-    mcp = FastMCP("wiskill", host=host, port=port)
+    mcp = FastMCP("wiskill", host=host, port=port,
+                  stateless_http=stateless, streamable_http_path=http_path)
 
     @mcp.tool()
     def wiki_search(query: str, limit: int = 10) -> list[dict]:

@@ -38,6 +38,8 @@ def main(argv: list[str] | None = None) -> int:
     serve = sub.add_parser("serve")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--with-mcp", action="store_true",
+                       help="also serve the MCP endpoint at /mcp in the same process")
 
     user = sub.add_parser("user").add_subparsers(dest="ucmd", required=True)
     for name in ("add", "passwd"):
@@ -95,7 +97,13 @@ def main(argv: list[str] | None = None) -> int:
         service.reindex()
         users = UserStore(config.users_file)
         keys = ApiKeyStore(config.apikeys_file)
-        app = create_app(service, users, config, apikeys=keys)
+        mcp_server = None
+        if args.with_mcp:
+            from wiskill.mcp.server import _resolve_principal, build_mcp
+            mcp_server = build_mcp(service, _resolve_principal(config),
+                                   stateless=True, http_path="/")
+            print(f"MCP mounted at http://{args.host}:{args.port}/mcp", flush=True)
+        app = create_app(service, users, config, apikeys=keys, mcp_server=mcp_server)
         uvicorn.run(app, host=args.host, port=args.port)
         return 0
 

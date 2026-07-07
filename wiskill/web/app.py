@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Request
@@ -16,8 +17,21 @@ from wiskill.service import PermissionError, WikiService
 _HERE = Path(__file__).parent
 
 
-def create_app(service: WikiService, users: UserStore, config, apikeys=None) -> FastAPI:
-    app = FastAPI(title="semlix-wiskill")
+def create_app(service: WikiService, users: UserStore, config, apikeys=None,
+               mcp_server=None) -> FastAPI:
+    # When an MCP server is provided, mount it at /mcp in the same process so it
+    # shares this WikiService (and its in-memory index/vector store). Its ASGI
+    # lifespan must run, so thread it through the FastAPI app's lifespan.
+    mcp_app = mcp_server.streamable_http_app() if mcp_server is not None else None
+
+    lifespan = None
+    if mcp_app is not None:
+        @asynccontextmanager
+        async def lifespan(_app):  # noqa: F811
+            async with mcp_app.router.lifespan_context(_app):
+                yield
+
+    app = FastAPI(title="semlix-wiskill", lifespan=lifespan)
     secret = os.environ.get(config.session_secret_env, "dev-insecure-secret")
     app.add_middleware(
         SessionMiddleware, secret_key=secret,
@@ -27,6 +41,10 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None) -> 
     templates = Jinja2Templates(directory=str(_HERE / "templates"))
     # Expose the page list to every template (sidebar nav tree).
     templates.env.globals["nav_pages"] = service.list_pages
+
+    # Mount MCP before the catch-all page routes so /mcp isn't captured as a slug.
+    if mcp_app is not None:
+        app.mount("/mcp", mcp_app)
 
     if apikeys is not None:
         from wiskill.web.api import build_api_router

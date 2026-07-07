@@ -22,6 +22,13 @@ def test_write_read_search_list_delete(tools):
     assert tools.wiki_read("notas/x") is None
 
 
+def test_transport_map_and_validation():
+    from wiskill.mcp.server import _TRANSPORTS, run_server
+    assert _TRANSPORTS == {"stdio": "stdio", "http": "streamable-http", "sse": "sse"}
+    with pytest.raises(ValueError):
+        run_server(transport="tcp")  # not a valid transport
+
+
 def test_reader_cannot_write(tmp_path):
     service = WikiService(PageStore(tmp_path / "p"), LexicalBackend(tmp_path / "i"))
     reader_tools = WikiTools(service, Principal("r", Role.READER))

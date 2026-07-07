@@ -30,7 +30,11 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("init")
     sub.add_parser("reindex")
-    sub.add_parser("mcp")
+    mcp = sub.add_parser("mcp")
+    mcp.add_argument("--transport", choices=["stdio", "http", "sse"], default="stdio",
+                     help="stdio (default), http (Streamable HTTP), or sse (legacy)")
+    mcp.add_argument("--host", default="127.0.0.1", help="bind host for http/sse")
+    mcp.add_argument("--port", type=int, default=8765, help="bind port for http/sse")
     serve = sub.add_parser("serve")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
@@ -77,8 +81,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "mcp":
-        from wiskill.mcp.server import run_stdio
-        run_stdio(args.config)
+        from wiskill.mcp.server import run_server
+        if args.transport != "stdio":
+            print(f"wiskill MCP ({args.transport}) on http://{args.host}:{args.port}"
+                  f"{'/mcp' if args.transport == 'http' else '/sse'}", flush=True)
+        run_server(args.config, transport=args.transport, host=args.host, port=args.port)
         return 0
 
     if args.cmd == "serve":

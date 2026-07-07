@@ -192,16 +192,30 @@ maps it to that key's role. **If no valid key is provided, it falls back to the
 `editor` role** — convenient for a trusted, local LLM on your own machine. Set a
 key (e.g. a `reader` key) only when you want to restrict what the LLM can do.
 
-**2. Run it.**
+**2. Run it.** Pick a transport:
 
 ```bash
-WISKILL_API_KEY=<key> uv run wiskill mcp          # stdio MCP server
-# or, trusted-local (editor role, no key):
-uv run wiskill mcp
+# stdio (default) — the client launches this process and pipes JSON-RPC.
+uv run wiskill mcp                                 # trusted-local: editor role
+WISKILL_API_KEY=<key> uv run wiskill mcp           # or with an explicit key/role
+
+# HTTP (Streamable HTTP) — a long-running network server, connect by URL.
+uv run wiskill mcp --transport http --host 127.0.0.1 --port 8765
+#   → http://127.0.0.1:8765/mcp
+
+# SSE (legacy) — http://host:port/sse
+uv run wiskill mcp --transport sse --port 8765
 ```
 
-**3. Connect it to Claude Code** — add an `.mcp.json` at your project root (or
-run `claude mcp add`). Use absolute paths so it works from any directory:
+> **Security:** MCP does not have raw TCP — "over the network" means HTTP. The
+> HTTP/SSE transports are **not authenticated** by wiskill (they use the same
+> trusted-local editor fallback), so **bind to `127.0.0.1`** (the default). Do
+> not expose them on `0.0.0.0` or a public interface without putting an
+> authenticating reverse proxy in front — anyone who can reach the port gets
+> write access to your notes.
+
+**3a. Connect via stdio** — add an `.mcp.json` at your project root (or run
+`claude mcp add`). Use absolute paths so it works from any directory:
 
 ```json
 {
@@ -215,10 +229,18 @@ run `claude mcp add`). Use absolute paths so it works from any directory:
 }
 ```
 
+**3b. Connect via HTTP** — start the server (`--transport http` above), then
+register the URL:
+
+```bash
+claude mcp add --transport http wiskill http://127.0.0.1:8765/mcp
+# SSE instead:  claude mcp add --transport sse wiskill http://127.0.0.1:8765/sse
+```
+
 Then restart Claude Code (or run `/mcp`) to pick up the server. The
 `skill/SKILL.md` file documents the tools and conventions for the agent.
 
-> You can omit the `env` block above and instead put `WISKILL_API_KEY` in the
+> For stdio you can omit the `env` block and instead put `WISKILL_API_KEY` in the
 > gitignored `.env` next to `wiskill.toml` — `wiskill mcp` loads it automatically.
 
 > The MCP server speaks JSON-RPC on stdout; model-loading chatter and library

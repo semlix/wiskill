@@ -37,10 +37,10 @@ class WikiTools:
         return self.service.remove(slug, principal=self.principal)
 
 
-def build_mcp(service, principal: Principal):
+def build_mcp(service, principal: Principal, host: str = "127.0.0.1", port: int = 8765):
     from mcp.server.fastmcp import FastMCP
     tools = WikiTools(service, principal)
-    mcp = FastMCP("wiskill")
+    mcp = FastMCP("wiskill", host=host, port=port)
 
     @mcp.tool()
     def wiki_search(query: str, limit: int = 10) -> list[dict]:
@@ -81,12 +81,26 @@ def _resolve_principal(config) -> Principal:
     return Principal("local", Role.EDITOR)
 
 
-def run_stdio(config_path: str | None = None) -> None:
+# Map our friendly transport names to FastMCP's.
+_TRANSPORTS = {"stdio": "stdio", "http": "streamable-http", "sse": "sse"}
+
+
+def run_server(config_path: str | None = None, transport: str = "stdio",
+               host: str = "127.0.0.1", port: int = 8765) -> None:
+    """Run the MCP server over the chosen transport.
+
+    - ``stdio``: launched by a client (Claude Code); speaks JSON-RPC on stdout.
+    - ``http``: Streamable HTTP at ``http://host:port/mcp`` (the network option).
+    - ``sse``: legacy Server-Sent Events at ``http://host:port/sse``.
+    """
     import contextlib
     import sys
 
     from wiskill._setup import quiet_ml_noise
     quiet_ml_noise()
+
+    if transport not in _TRANSPORTS:
+        raise ValueError(f"unknown transport: {transport!r} (use stdio|http|sse)")
 
     from wiskill.config import load_config
     from wiskill.service import WikiService
@@ -94,15 +108,30 @@ def run_stdio(config_path: str | None = None) -> None:
     from wiskill.backend import build_backend
 
     config = load_config(config_path)
-    # Build the backend (may load an embedding model) with stdout redirected to
-    # stderr: an MCP stdio server speaks JSON-RPC on stdout, so any model/loader
-    # chatter printed there would corrupt the protocol. Warnings/progress go to
-    # stderr, which MCP clients treat as logs.
-    with contextlib.redirect_stdout(sys.stderr):
+
+    def _build():
         service = WikiService(PageStore(config.pages_dir), build_backend(config))
         service.reindex()  # sync any external edits before serving
+        return service
+
+    # For stdio, stdout carries the JSON-RPC protocol, so any model/loader
+    # chatter printed there would corrupt it — redirect it to stderr while the
+    # backend loads. HTTP/SSE carry the protocol over the socket, so normal
+    # stdout logging is fine (and useful).
+    if transport == "stdio":
+        with contextlib.redirect_stdout(sys.stderr):
+            service = _build()
+    else:
+        service = _build()
+
     principal = _resolve_principal(config)
+    mcp = build_mcp(service, principal, host=host, port=port)
     try:
-        build_mcp(service, principal).run()  # stdio transport by default
+        mcp.run(transport=_TRANSPORTS[transport])
     except KeyboardInterrupt:
-        pass  # Ctrl-C is the normal way to stop a stdio server; exit quietly.
+        pass  # Ctrl-C is the normal way to stop the server; exit quietly.
+
+
+def run_stdio(config_path: str | None = None) -> None:
+    """Backwards-compatible stdio entrypoint."""
+    run_server(config_path, transport="stdio")

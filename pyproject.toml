@@ -19,6 +19,7 @@ dependencies = [
     "itsdangerous",          # Starlette SessionMiddleware signing
     "markdown-it-py>=3.0",
     "mdit-py-plugins>=0.4",  # GFM: tables, strikethrough, tasklists
+    "linkify-it-py>=2.0",    # GFM: bare URL autolinks (linkify=True)
     "pyyaml>=6.0",           # front-matter
 ]
 

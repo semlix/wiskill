@@ -24,3 +24,8 @@ def test_wikilink_existing_vs_missing():
     assert 'href="/a"' in html and 'class="wikilink"' in html
     assert 'href="/b/edit"' in html and "missing" in html
     assert ">Bee<" in html
+
+
+def test_bare_url_is_autolinked():
+    html = render_html("visit https://example.com now", lambda s: True)
+    assert '<a href="https://example.com">https://example.com</a>' in html

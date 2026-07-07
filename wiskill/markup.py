@@ -10,15 +10,21 @@ from mdit_py_plugins.tasklists import tasklists_plugin
 
 _WIKILINK = re.compile(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
 
-# GFM: tables + strikethrough enabled explicitly on the "commonmark" base;
-# tasklists via plugin. Raw HTML disabled (html=False) to prevent stored XSS.
+# GFM: tables + strikethrough + linkify (bare URL autolinks) enabled
+# explicitly on the "commonmark" base; tasklists via plugin. Raw HTML
+# disabled (html=False) to prevent stored XSS.
+#
+# The "commonmark" preset disables the linkify rule by default even when
+# the `linkify: True` option is set on the option dict, so it must also be
+# turned on explicitly via .enable(["linkify"]) — this requires the
+# linkify-it-py package to be installed.
 #
 # markdown-it-py's built-in strikethrough rule renders <s>...</s>, but GFM
 # (https://github.github.com/gfm/#strikethrough-extension-) specifies
 # <del>...</del>; override the render rules to match GFM output.
 _md = (
     MarkdownIt("commonmark", {"html": False, "linkify": True})
-    .enable(["table", "strikethrough"])
+    .enable(["table", "strikethrough", "linkify"])
     .use(tasklists_plugin)
 )
 _md.add_render_rule("s_open", lambda self, tokens, idx, options, env: "<del>")

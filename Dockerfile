@@ -22,8 +22,9 @@ RUN uv pip install --system -e ".[semantic,mcp]"
 # Bake the default embedding model into the image's HF cache.
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 
-# Non-root; the HF cache must be readable by the runtime user.
-RUN useradd --create-home --uid 10001 app && chown -R app:app /opt/hf-cache /app
+# Non-root. uid 1000 matches the typical host user so bind-mounted ./data is
+# writable and files it creates stay owned by the host user.
+RUN useradd --create-home --uid 1000 app && chown -R app:app /opt/hf-cache /app
 USER app
 
 EXPOSE 8000

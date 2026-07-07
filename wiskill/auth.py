@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import os
 import secrets
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 
 _SCRYPT_N = 2 ** 14
 _SCRYPT_R = 8
@@ -49,3 +51,61 @@ def verify_password(pw: str, stored: str) -> bool:
         return hmac.compare_digest(dk, bytes.fromhex(hash_hex))
     except (ValueError, TypeError):
         return False
+
+
+class UserStore:
+    def __init__(self, path):
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    def _load(self) -> dict:
+        if self.path.exists():
+            return json.loads(self.path.read_text(encoding="utf-8"))
+        return {"users": {}}
+
+    def _save(self, data: dict) -> None:
+        self.path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    def add(self, username: str, password: str, role: Role) -> None:
+        data = self._load()
+        if username in data["users"]:
+            raise ValueError(f"user exists: {username}")
+        data["users"][username] = {"hash": hash_password(password), "role": role.value}
+        self._save(data)
+
+    def set_password(self, username: str, password: str) -> None:
+        data = self._load()
+        if username not in data["users"]:
+            raise ValueError(f"no such user: {username}")
+        data["users"][username]["hash"] = hash_password(password)
+        self._save(data)
+
+    def set_role(self, username: str, role: Role) -> None:
+        data = self._load()
+        if username not in data["users"]:
+            raise ValueError(f"no such user: {username}")
+        data["users"][username]["role"] = role.value
+        self._save(data)
+
+    def remove(self, username: str) -> bool:
+        data = self._load()
+        if username not in data["users"]:
+            return False
+        del data["users"][username]
+        self._save(data)
+        return True
+
+    def list_users(self) -> list[tuple[str, Role]]:
+        data = self._load()
+        return sorted((u, Role(rec["role"])) for u, rec in data["users"].items())
+
+    def authenticate(self, username: str, password: str) -> Principal | None:
+        data = self._load()
+        rec = data["users"].get(username)
+        if rec is None:
+            # Hash anyway to reduce user-enumeration timing signal.
+            verify_password(password, "scrypt$1$1$1$00$00")
+            return None
+        if verify_password(password, rec["hash"]):
+            return Principal(username=username, role=Role(rec["role"]))
+        return None

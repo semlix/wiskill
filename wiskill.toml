@@ -23,3 +23,4 @@ session_ttl_hours = 168
 # Let anyone view + search without logging in (editing still needs an account).
 # Set false to require login for everything.
 public_read = true
+mcp_require_key = true    # /mcp requires a valid editor API key

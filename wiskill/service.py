@@ -23,11 +23,22 @@ class WikiService:
     def get(self, slug: str) -> Page | None:
         return self.store.read(slug)
 
+    def _direct_children(self, slug: str) -> list[tuple[str, str, str]]:
+        """Direct sub-pages of `slug` (not deeper descendants), newest first,
+        as (slug, title, updated_display) for the {{children}} markup tag."""
+        depth = len(slug.split("/")) + 1
+        direct_slugs = [s for s in self.store.list_slugs(slug)
+                        if len(s.split("/")) == depth]
+        pages = [p for p in (self.store.read(s) for s in direct_slugs) if p is not None]
+        pages.sort(key=lambda p: p.updated, reverse=True)
+        return [(p.slug, p.title, p.updated.strftime("%b %d, %Y")) for p in pages]
+
     def render(self, slug: str) -> str | None:
         page = self.store.read(slug)
         if page is None:
             return None
-        return render_html(page.body, self.store.exists)
+        children = self._direct_children(slug)
+        return render_html(page.body, self.store.exists, children=children)
 
     def save(self, slug: str, body: str, title, tags, principal: Principal) -> Page:
         self._require(principal, Role.EDITOR)

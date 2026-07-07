@@ -8,6 +8,7 @@ from markdown_it import MarkdownIt
 from mdit_py_plugins.tasklists import tasklists_plugin
 
 _WIKILINK = re.compile(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
+_CHILDREN_TAG = re.compile(r"^\{\{children\}\}[ \t]*$", re.MULTILINE)
 
 # GFM: tables + strikethrough + linkify (bare URL autolinks) enabled
 # explicitly on the "commonmark" base; tasklists via plugin. Raw HTML
@@ -65,10 +66,27 @@ def _replace_wikilinks(body: str, exists: Callable[[str], bool]) -> str:
     return _WIKILINK.sub(repl, body)
 
 
-def render_html(body: str, exists: Callable[[str], bool]) -> str:
+def _expand_children_tag(body: str, children: list[tuple[str, str, str]]) -> str:
+    """Replace a standalone `{{children}}` line with a markdown bullet list
+    of (slug, title, updated_display) — before markdown rendering, so the
+    generated [[wikilinks]] and formatting flow through the normal pipeline
+    instead of needing separate HTML-escaping rules."""
+    if not _CHILDREN_TAG.search(body):
+        return body
+    if children:
+        listing = "\n".join(
+            f"- [[{slug}|{title}]] — updated {updated}" for slug, title, updated in children)
+    else:
+        listing = "_Nothing here yet._"
+    return _CHILDREN_TAG.sub(listing, body)
+
+
+def render_html(body: str, exists: Callable[[str], bool],
+                children: list[tuple[str, str, str]] | None = None) -> str:
     # Resolve wikilinks to HTML anchors *after* markdown rendering, so
     # html=False still blocks user-authored tags. [[...]] tokens are plain
     # text to markdown-it and pass through untouched, so the regex finds
     # them intact in the rendered HTML.
+    body = _expand_children_tag(body, children or [])
     html = _md.render(body)
     return _replace_wikilinks(html, exists)

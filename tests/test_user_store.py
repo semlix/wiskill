@@ -1,5 +1,5 @@
 import pytest
-from wiskill.auth import UserStore, Role
+from wiskill.auth import UserStore, Role, _DUMMY_PASSWORD_HASH
 
 
 def test_add_authenticate_roundtrip(tmp_path):
@@ -31,3 +31,10 @@ def test_set_role_and_remove(tmp_path):
     assert us.authenticate("d", "pw").role == Role.EDITOR
     assert us.remove("d") is True
     assert us.authenticate("d", "pw") is None
+
+
+def test_dummy_hash_uses_real_cost_params():
+    # Regression guard: the unknown-user timing-equalization hash must use
+    # the same scrypt cost params as real user hashes (N=16384, r=8, p=1),
+    # not a cheap placeholder, or the enumeration timing signal reappears.
+    assert _DUMMY_PASSWORD_HASH.startswith("scrypt$16384$8$1$")

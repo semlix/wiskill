@@ -53,6 +53,12 @@ def verify_password(pw: str, stored: str) -> bool:
         return False
 
 
+# Precomputed once at import time using the *real* scrypt cost params, so the
+# unknown-user branch of UserStore.authenticate takes the same time as a real
+# verify — closing the user-enumeration timing side channel.
+_DUMMY_PASSWORD_HASH = hash_password(secrets.token_hex(16))
+
+
 class UserStore:
     def __init__(self, path):
         self.path = Path(path)
@@ -104,7 +110,7 @@ class UserStore:
         rec = data["users"].get(username)
         if rec is None:
             # Hash anyway to reduce user-enumeration timing signal.
-            verify_password(password, "scrypt$1$1$1$00$00")
+            verify_password(password, _DUMMY_PASSWORD_HASH)
             return None
         if verify_password(password, rec["hash"]):
             return Principal(username=username, role=Role(rec["role"]))

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Páginas</h1>
+<ul class="pagelist">
+  {% for slug in slugs %}<li><a href="/{{ slug }}">{{ slug }}</a></li>{% else %}<li>No hay páginas todavía.</li>{% endfor %}
+</ul>
+<p><a href="/index/edit">+ nueva página</a></p>
+{% endblock %}

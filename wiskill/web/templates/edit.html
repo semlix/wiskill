@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Editar {{ slug }}{% endblock %}
+{% block content %}
+<h1>Editar <code>{{ slug }}</code></h1>
+<form action="/{{ slug }}" method="post" class="edit">
+  <label>Título <input name="title" value="{{ page.title if page else slug.split('/')|last }}"></label>
+  <label>Tags (coma) <input name="tags" value="{{ page.tags|join(',') if page else '' }}"></label>
+  <label>Contenido (Markdown)
+    <textarea name="body" rows="20">{{ page.body if page else '' }}</textarea>
+  </label>
+  <button type="submit">Guardar</button>
+</form>
+{% endblock %}

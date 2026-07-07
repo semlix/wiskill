@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}wiskill{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <a href="/" class="brand">wiskill</a>
+    <form action="/search" method="get" class="search"><input name="q" placeholder="Buscar…" value="{{ q|default('') }}"></form>
+    {% if user %}<span class="who">{{ user.username }} ({{ user.role.value }}) · <a href="/logout">salir</a></span>{% endif %}
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>

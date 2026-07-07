@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Buscar: {{ q }}{% endblock %}
+{% block content %}
+<h1>Resultados para “{{ q }}”</h1>
+<ul class="results">
+  {% for r in results %}
+  <li><a href="/{{ r.slug }}">{{ r.title }}</a> <small>({{ '%.3f'|format(r.score) }})</small>
+      <div class="snippet">{{ r.snippet|safe }}</div></li>
+  {% else %}<li>Sin resultados.</li>{% endfor %}
+</ul>
+{% endblock %}

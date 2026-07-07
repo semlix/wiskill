@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 license = { text = "BSD-2-Clause" }
 authors = [{ name = "Alberto Ferrer" }]
 dependencies = [
-    "semlix>=3.2",
+    "semlix>=3.2.2",        # 3.2.2 fixes bm25 in hybrid/semantic mode
     "numpy",                 # NumpyVectorStore + fake embedder in tests
     "fastapi>=0.110",
     "uvicorn>=0.29",

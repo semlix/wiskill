@@ -51,6 +51,8 @@ def main(argv: list[str] | None = None) -> int:
     krm = key.add_parser("rm"); krm.add_argument("label")
 
     args = parser.parse_args(argv)
+    from wiskill._setup import load_env_file
+    load_env_file(args.config)   # load secrets from a gitignored .env, if present
     config = load_config(args.config)
 
     if args.cmd == "init":

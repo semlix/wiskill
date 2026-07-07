@@ -99,6 +99,27 @@ changed files and drops deleted ones by content hash).
 
 ---
 
+## Secrets (`.env`, not the toml)
+
+Secrets never go in `wiskill.toml` — that file is meant to be versioned, and the
+toml only stores the *name* of the secret's env var (`session_secret_env`), not
+its value. Set secrets via the environment, or drop them in a **gitignored
+`.env`** that wiskill loads automatically (from the config file's directory and
+the current directory). A real environment variable always wins over `.env`.
+
+```bash
+cp .env.example .env      # then fill it in
+```
+
+```ini
+# .env  (gitignored — never commit)
+WISKILL_SECRET=<python -c "import secrets;print(secrets.token_urlsafe(32))">
+WISKILL_API_KEY=<an editor key from `wiskill apikey add`, or leave empty>
+```
+
+With `.env` in place you can just run `uv run wiskill serve` / `uv run wiskill
+mcp` — no manual `export` each time.
+
 ## Authentication
 
 **Roles** (increasing): `reader` < `editor` < `admin`.
@@ -196,6 +217,9 @@ run `claude mcp add`). Use absolute paths so it works from any directory:
 
 Then restart Claude Code (or run `/mcp`) to pick up the server. The
 `skill/SKILL.md` file documents the tools and conventions for the agent.
+
+> You can omit the `env` block above and instead put `WISKILL_API_KEY` in the
+> gitignored `.env` next to `wiskill.toml` — `wiskill mcp` loads it automatically.
 
 > The MCP server speaks JSON-RPC on stdout; model-loading chatter and library
 > warnings are redirected to stderr so they can't corrupt the protocol.

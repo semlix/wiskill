@@ -115,3 +115,47 @@ class UserStore:
         if verify_password(password, rec["hash"]):
             return Principal(username=username, role=Role(rec["role"]))
         return None
+
+
+def hash_api_key(key: str) -> str:
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()
+
+
+class ApiKeyStore:
+    def __init__(self, path):
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    def _load(self) -> dict:
+        if self.path.exists():
+            return json.loads(self.path.read_text(encoding="utf-8"))
+        return {"keys": {}}
+
+    def _save(self, data: dict) -> None:
+        self.path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    def create(self, label: str, role: Role) -> str:
+        key = secrets.token_urlsafe(32)
+        data = self._load()
+        data["keys"][hash_api_key(key)] = {"label": label, "role": role.value}
+        self._save(data)
+        return key
+
+    def verify(self, key: str) -> Principal | None:
+        rec = self._load()["keys"].get(hash_api_key(key))
+        if rec is None:
+            return None
+        return Principal(username=rec["label"], role=Role(rec["role"]))
+
+    def remove(self, label: str) -> bool:
+        data = self._load()
+        for digest, rec in list(data["keys"].items()):
+            if rec["label"] == label:
+                del data["keys"][digest]
+                self._save(data)
+                return True
+        return False
+
+    def list_keys(self) -> list[tuple[str, Role]]:
+        data = self._load()
+        return sorted((rec["label"], Role(rec["role"])) for rec in data["keys"].values())

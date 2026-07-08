@@ -2,8 +2,19 @@ from datetime import datetime, timezone
 
 import pytest
 
-from wiskill.backend import LexicalBackend, SearchResult
+from wiskill.backend import LexicalBackend, SearchResult, _approximate_highlight
 from wiskill.store import Page
+
+
+def test_approximate_highlight_wraps_query_terms_and_escapes_html():
+    out = _approximate_highlight("<b>login</b> authentication errors", "login authentication")
+    assert "&lt;b&gt;" in out and "<script>" not in out
+    assert '<b class="match term' in out
+    assert out.count('<b class="match term') == 2
+
+
+def test_approximate_highlight_no_query_terms_just_escapes():
+    assert _approximate_highlight("plain <text>", "") == "plain &lt;text&gt;"
 
 
 def _page(slug, title, body):
@@ -22,6 +33,15 @@ def test_bm25_engine(tmp_path):
     # only real matches (bm25s' zero-score non-matches are filtered out)
     assert [r.slug for r in results] == ["login"]
     assert isinstance(results[0], SearchResult)
+
+
+def test_bm25_engine_snippet_is_approximately_highlighted(tmp_path):
+    pytest.importorskip("bm25s")
+    b = LexicalBackend(tmp_path / "idx", engine="bm25")
+    b.index_page(_page("login", "Login", "how to fix login authentication errors"))
+    b.commit()
+    snippet = b.search("authentication")[0].snippet
+    assert '<b class="match term0">authentication</b>' in snippet
 
 
 def test_bad_engine_rejected(tmp_path):

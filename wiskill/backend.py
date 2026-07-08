@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -36,6 +38,24 @@ class SearchResult:
     title: str
     score: float
     snippet: str
+
+
+def _approximate_highlight(excerpt: str, query: str) -> str:
+    """Best-effort highlight for engines with no real match positions (bm25
+    is bag-of-words, so its snippet is just a plain excerpt). Wraps
+    query-term occurrences in the same `<b class="match termN">` markup the
+    core engine's real highlighter produces, so downstream cleanup
+    (clean_snippet_html) doesn't need to know which engine ran."""
+    escaped = html.escape(excerpt)
+    terms = sorted(set(re.findall(r"\w+", query.lower())), key=len, reverse=True)
+    if not terms:
+        return escaped
+    term_index = {t: i for i, t in enumerate(terms)}
+    pattern = re.compile("|".join(rf"\b{re.escape(t)}\b" for t in terms), re.IGNORECASE)
+    return pattern.sub(
+        lambda m: f'<b class="match term{term_index[m.group(0).lower()]}">{m.group(0)}</b>',
+        escaped,
+    )
 
 
 def content_for(page: Page) -> str:
@@ -122,7 +142,7 @@ class LexicalBackend:
                     # instead of several joined with "...".
                     snippet = hit.highlights("content", top=1)
                 if not snippet:
-                    snippet = str(hit.get("content", ""))[:200]
+                    snippet = _approximate_highlight(str(hit.get("content", ""))[:200], query)
                 out.append(SearchResult(
                     slug=hit["slug"],
                     title=hit.get("title", hit["slug"]),
@@ -211,7 +231,8 @@ class HybridBackend:
         hits = searcher.search(query, limit=limit, highlight_fields=["content"])
         out: list[SearchResult] = []
         for h in hits:
-            snippet = h.highlights.get("content") or str(h.get("content", ""))[:200]
+            snippet = h.highlights.get("content") or _approximate_highlight(
+                str(h.get("content", ""))[:200], query)
             out.append(SearchResult(
                 slug=h.doc_id,
                 title=str(h.get("title", h.doc_id)),

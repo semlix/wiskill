@@ -23,7 +23,10 @@ def test_bm25_engine_with_hybrid_and_semantic(tmp_path, fake_provider, mode):
     b.index_page(_page("cats", "Cats", "domestic felines behavior"))
     b.commit()
     assert b.doc_count() == 2
-    assert any(r.slug == "login" for r in b.search("authentication", limit=5))
+    results = b.search("authentication", limit=5)
+    assert any(r.slug == "login" for r in results)
+    login_result = next(r for r in results if r.slug == "login")
+    assert '<b class="match term' in login_result.snippet
 
 
 def test_hybrid_finds_by_keyword_and_returns_results(tmp_path, fake_provider):

@@ -166,6 +166,29 @@ def test_private_namespace_hidden_from_anonymous_sidebar(private_ns_client):
     assert "projects/foo" in r.text
 
 
+def test_private_namespace_own_page_visible_but_gated(tmp_path, monkeypatch):
+    # The namespace's own top-level page (e.g. "notes") is a deliberate
+    # exception: anon visitors see it exists (so they know to log in), but
+    # its sub-pages stay fully hidden, and viewing it still requires login.
+    from wiskill.auth import Principal, Role
+    monkeypatch.setenv("WISKILL_SECRET", "s")
+    service = WikiService(PageStore(tmp_path / "pages"), LexicalBackend(tmp_path / "idx"))
+    ed = Principal("ed", Role.EDITOR)
+    service.save("notes", "Running notes.", title="Notes", tags=[], principal=ed)
+    service.save("notes/secret", "private diary entry", title="Secret", tags=[], principal=ed)
+    users = UserStore(tmp_path / "users.json")
+    app = create_app(service, users,
+                     WiskillConfig(public_read=True, private_namespaces=("notes",)))
+    c = TestClient(app)
+
+    r = c.get("/")
+    assert 'href="/notes"' in r.text  # the namespace label itself is visible
+    assert "notes/secret" not in r.text  # its sub-page is not
+
+    r = c.get("/notes", follow_redirects=False)
+    assert r.status_code in (302, 303, 307) and "/login" in r.headers["location"]
+
+
 def test_private_namespace_visible_to_logged_in_user(private_ns_client):
     _login(private_ns_client, user="ed", pw="pw")
     r = private_ns_client.get("/notes/secret")

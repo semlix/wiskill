@@ -154,10 +154,16 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         return top in config.private_namespaces
 
     def nav_pages_for(authed: bool) -> list[str]:
-        """Sidebar page list. Anonymous guests never see private-namespace
-        slugs — not just their content, their existence."""
+        """Sidebar page list. Anonymous guests see that a private namespace
+        exists — its own top-level page, if any (e.g. "notes") — so they
+        know to log in, but not what's inside it: deeper slugs ("notes/x")
+        stay hidden, same as everywhere else (search, tags, backlinks,
+        sitemap all still use is_private() unchanged, hiding the namespace
+        entirely from those)."""
         slugs = service.list_pages()
-        return slugs if authed else [s for s in slugs if not is_private(s)]
+        if authed:
+            return slugs
+        return [s for s in slugs if not (is_private(s) and "/" in s)]
 
     def nav_tree_for(authed: bool) -> dict:
         """Nested, collapsible sidebar tree (see build_nav_tree) over the

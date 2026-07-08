@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "semlix-wiskill"
-version = "0.2.16"
+version = "0.2.17"
 description = "A DokuWiki-style personal wiki backed by semlix (lexical + semantic search)."
 requires-python = ">=3.11"
 license = { text = "BSD-2-Clause" }

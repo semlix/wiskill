@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from wiskill.auth import Principal, Role, UserStore
-from wiskill.markup import plain_summary
+from wiskill.markup import clean_snippet_html, plain_summary
 from wiskill.service import PermissionError, WikiService
 
 _HERE = Path(__file__).parent
@@ -230,6 +230,8 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         results = service.search(q) if q else []
         if not authed:
             results = [r for r in results if not is_private(r.slug)]
+        for r in results:
+            r.snippet = clean_snippet_html(r.snippet)
         return templates.TemplateResponse(request, "search.html", {
             "q": q, "results": results,
             "meta_title": (f"Search: {q}" if q else "Search"),

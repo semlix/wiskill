@@ -31,17 +31,43 @@ _md.add_render_rule("s_open", lambda self, tokens, idx, options, env: "<del>")
 _md.add_render_rule("s_close", lambda self, tokens, idx, options, env: "</del>")
 
 
-def plain_summary(body: str, limit: int = 155) -> str:
-    """A plain-text one-line summary of a Markdown body, for meta descriptions.
-    Strips common Markdown/wikilink syntax and collapses whitespace."""
-    text = _WIKILINK.sub(lambda m: (m.group(2) or m.group(1)).strip(), body)
+def _strip_markdown_noise(text: str) -> str:
+    """Wikilinks, {{children}}, markdown punctuation, and link targets -> plain
+    text (whitespace not yet collapsed). Shared by plain_summary and
+    clean_snippet_html."""
+    text = _WIKILINK.sub(lambda m: (m.group(2) or m.group(1)).strip(), text)
     text = _CHILDREN_TAG.sub("", text)                  # {{children}} placeholder
     text = re.sub(r"[#>*_`~\[\]!]", " ", text)          # markdown punctuation
     text = re.sub(r"\((?:https?://)?[^)]*\)", " ", text)  # link targets
-    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def plain_summary(body: str, limit: int = 155) -> str:
+    """A plain-text one-line summary of a Markdown body, for meta descriptions.
+    Strips common Markdown/wikilink syntax and collapses whitespace."""
+    text = re.sub(r"\s+", " ", _strip_markdown_noise(body)).strip()
     if len(text) > limit:
         text = text[:limit].rsplit(" ", 1)[0] + "…"
     return text
+
+
+_HIGHLIGHT_TAG = re.compile(r"<b\b[^>]*>.*?</b>", re.DOTALL)
+
+
+def clean_snippet_html(snippet: str) -> str:
+    """Clean a search-result snippet for display. The search backend's
+    highlighter already HTML-escapes the surrounding text and wraps matched
+    query terms in `<b class="match termN">...</b>` spans; this strips
+    Markdown/wikilink syntax from the text around those spans without
+    touching the spans themselves."""
+    pieces = _HIGHLIGHT_TAG.split(snippet)
+    tags = _HIGHLIGHT_TAG.findall(snippet)
+    out = []
+    for i, piece in enumerate(pieces):
+        out.append(_strip_markdown_noise(piece))
+        if i < len(tags):
+            out.append(tags[i])
+    return re.sub(r"\s+", " ", "".join(out)).strip()
 
 
 def extract_wikilinks(body: str) -> list[str]:

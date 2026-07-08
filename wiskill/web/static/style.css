@@ -220,9 +220,9 @@ h1, h2, h3 { font-family: "Fraunces", Georgia, serif; font-weight: 600; letter-s
 /* Search results */
 .results { list-style: none; padding: 0; margin: 1.5rem 0 0; display: flex; flex-direction: column; gap: 1.1rem; }
 .results li { padding-bottom: 1.1rem; border-bottom: 1px solid var(--line); }
-.result-title { font-family: "Fraunces", serif; font-size: 1.25rem; font-weight: 600; }
+.result-path { font-size: .82rem; color: var(--accent); letter-spacing: .01em; }
+.result-title { font-family: "Fraunces", serif; font-size: 1.25rem; font-weight: 600; display: block; margin-top: .1rem; }
 .result-slug { font-family: "JetBrains Mono", monospace; font-size: .72rem; color: var(--ink-soft); }
-.result-score { font-size: .72rem; color: var(--gold); }
 .snippet { color: var(--ink-soft); margin-top: .3rem; font-size: .95rem; }
 .snippet b, .snippet mark { background: var(--mark); }
 

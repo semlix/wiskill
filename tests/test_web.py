@@ -48,6 +48,22 @@ def test_search_route(client):
     assert r.status_code == 200 and "foo" in r.text.lower()
 
 
+def test_search_result_snippet_has_no_raw_markdown_or_score(client):
+    _login(client)
+    client.post("/projects/foo", data={
+        "title": "Foo", "tags": "",
+        "body": "# Foo\nWelcome to my **semantic notebook**, see [[bar|Bar]] for authtoken details."},
+        follow_redirects=False)
+    r = client.get("/search", params={"q": "authtoken"})
+    assert r.status_code == 200
+    assert "**" not in r.text and "[[" not in r.text
+    # breadcrumb-style path built from the slug
+    assert "projects › foo" in r.text
+    # no raw relevance score digits shown
+    import re
+    assert not re.search(r"0\.\d{3}", r.text)
+
+
 @pytest.fixture
 def public_client(tmp_path, monkeypatch):
     from wiskill.auth import Principal, Role

@@ -1,4 +1,4 @@
-from wiskill.markup import render_html, extract_wikilinks, plain_summary
+from wiskill.markup import render_html, extract_wikilinks, plain_summary, clean_snippet_html
 
 
 def test_extract_wikilinks():
@@ -56,3 +56,24 @@ def test_plain_summary_strips_children_tag():
     summary = plain_summary("Intro text.\n\n{{children}}\n")
     assert "{{children}}" not in summary
     assert "Intro text" in summary
+
+
+def test_clean_snippet_html_strips_markdown_without_touching_highlight():
+    raw = 'Home\nWelcome to my **<b class="match term0">semantic</b> <b class="match term1">notebook</b>** — a wiki'
+    cleaned = clean_snippet_html(raw)
+    assert "**" not in cleaned
+    assert '<b class="match term0">semantic</b>' in cleaned
+    assert '<b class="match term1">notebook</b>' in cleaned
+
+
+def test_clean_snippet_html_resolves_wikilinks_and_collapses_whitespace():
+    raw = "Powered by [[projects/wiskill|wiskill]] on top of\n[[projects/semlix|semlix]]."
+    cleaned = clean_snippet_html(raw)
+    assert "[[" not in cleaned and "]]" not in cleaned
+    assert "wiskill" in cleaned and "semlix" in cleaned
+    assert "\n" not in cleaned
+
+
+def test_clean_snippet_html_no_highlight_tags():
+    cleaned = clean_snippet_html("# Home\nJust `code` and *stuff*.")
+    assert cleaned == "Home Just code and stuff ."

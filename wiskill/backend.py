@@ -117,7 +117,9 @@ class LexicalBackend:
                 # Highlighting needs positions (core only); bm25 → plain excerpt.
                 snippet = ""
                 if self.engine == "core":
-                    snippet = hit.highlights("content")
+                    # top=1: a single clean fragment (Google-style one-liner)
+                    # instead of several joined with "...".
+                    snippet = hit.highlights("content", top=1)
                 if not snippet:
                     snippet = str(hit.get("content", ""))[:200]
                 out.append(SearchResult(

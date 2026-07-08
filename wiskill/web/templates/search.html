@@ -9,9 +9,8 @@
 <ul class="results">
   {% for r in results %}
   <li>
+    <div class="result-path">{{ r.slug.split('/')|join(' › ') }}</div>
     <a class="result-title" href="/{{ r.slug }}">{{ r.title }}</a>
-    <span class="result-score">{{ '%.3f'|format(r.score) }}</span>
-    <div class="result-slug">{{ r.slug }}</div>
     <div class="snippet">{{ r.snippet|safe }}</div>
   </li>
   {% endfor %}

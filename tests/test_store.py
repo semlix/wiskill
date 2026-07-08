@@ -47,3 +47,12 @@ def test_delete(store):
 def test_traversal_rejected(store, bad):
     with pytest.raises(ValueError):
         store.slug_to_path(bad)
+
+
+@pytest.mark.parametrize("bad", ["../secret", "/etc/passwd", "a/../../b", "a/./b", ""])
+def test_exists_and_read_degrade_gracefully_on_malformed_slug(store, bad):
+    # exists()/read() are predicates called on arbitrary text (e.g. a literal
+    # "[[..]]" in a page's prose while resolving wikilinks) — they must never
+    # raise, unlike write()/delete() which are real user actions.
+    assert store.exists(bad) is False
+    assert store.read(bad) is None

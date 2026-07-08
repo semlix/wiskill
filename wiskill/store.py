@@ -57,10 +57,22 @@ class PageStore:
         return rel.with_suffix("").as_posix()
 
     def exists(self, slug: str) -> bool:
-        return self.slug_to_path(slug).exists()
+        # A malformed slug (e.g. a literal "[[..]]" in prose/code resolving
+        # to a ".." segment) can't exist as a page — that's not the same as
+        # an error the caller should have to handle. render_html calls this
+        # per-wikilink while rendering arbitrary user content, so it must
+        # never raise.
+        try:
+            path = self.slug_to_path(slug)
+        except ValueError:
+            return False
+        return path.exists()
 
     def read(self, slug: str) -> Page | None:
-        path = self.slug_to_path(slug)
+        try:
+            path = self.slug_to_path(slug)
+        except ValueError:
+            return None
         if not path.exists():
             return None
         raw = path.read_text(encoding="utf-8")

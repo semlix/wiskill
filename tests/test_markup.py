@@ -29,6 +29,19 @@ def test_fenced_code_no_language_is_plain():
     assert "<pre><code>hello\n</code></pre>" in html
 
 
+def test_literal_bracket_syntax_in_code_span_does_not_crash(tmp_path):
+    # Regression (broke production): a page mentioning the wikilink syntax
+    # itself, e.g. "raw `[[..]]`", crashed render_html — the wikilink regex
+    # doesn't know about code spans, so it tried to resolve a page literally
+    # named "..", and PageStore.exists() raised ValueError instead of just
+    # saying no. Uses a real PageStore (not a stub) so the fix is actually
+    # exercised.
+    from wiskill.store import PageStore
+    store = PageStore(tmp_path / "pages")
+    html = render_html("see raw `[[..]]` syntax", store.exists)
+    assert '<a href="/../edit" class="wikilink missing">..</a>' in html
+
+
 def test_raw_html_is_escaped():
     html = render_html("<script>alert(1)</script>", lambda s: True)
     assert "<script>" not in html

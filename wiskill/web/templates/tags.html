@@ -6,14 +6,11 @@
 <p class="meta">{{ tags|length }} tag{{ '' if tags|length == 1 else 's' }}</p>
 <hr class="rule">
 {% if tags %}
-<ul class="results">
-  {% for tag, count in tags %}
-  <li>
-    <a class="result-title" href="/tags/{{ tag }}">#{{ tag }}</a>
-    <span class="tree-count">({{ count }})</span>
-  </li>
+<div class="tag-cloud">
+  {% for tag, count, tier in tags %}
+  <a class="tag-cloud-item tier-{{ tier }}" href="/tags/{{ tag }}" title="{{ count }} page{{ '' if count == 1 else 's' }}">#{{ tag }}</a>
   {% endfor %}
-</ul>
+</div>
 {% else %}
 <p class="empty">No tags yet.</p>
 {% endif %}

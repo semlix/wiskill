@@ -72,6 +72,21 @@ def build_nav_tree(slugs: list[str]) -> dict:
     return finalize(root)
 
 
+def _tag_cloud(counts: dict[str, int]) -> list[tuple[str, int, int]]:
+    """(tag, count, size-tier 1-5) sorted alphabetically, tier scaled by
+    count relative to the lightest/heaviest tag in this set — a flat
+    weighting (same tier for everyone) when every tag has the same count."""
+    if not counts:
+        return []
+    lo, hi = min(counts.values()), max(counts.values())
+    span = hi - lo
+
+    def tier(count: int) -> int:
+        return 3 if span == 0 else 1 + round(4 * (count - lo) / span)
+
+    return sorted((tag, count, tier(count)) for tag, count in counts.items())
+
+
 def _render_sitemap(base_url: str, pages: list) -> str:
     """Build a sitemap.xml body from Page objects. `base_url` has no
     trailing slash — pages are served at `/{slug}` directly (the root
@@ -288,9 +303,8 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
                     continue
                 for t in page.tags:
                     counts[t] = counts.get(t, 0) + 1
-        tags = sorted(counts.items())
         return templates.TemplateResponse(request, "tags.html", {
-            "tags": tags, "meta_title": "Tags",
+            "tags": _tag_cloud(counts), "meta_title": "Tags",
             "meta_description": "Browse notes by tag.",
             **_common(p, authed)})
 

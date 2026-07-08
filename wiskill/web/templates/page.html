@@ -36,14 +36,11 @@
 {% if backlinks %}
 <section class="backlinks">
   <h2>Linked from</h2>
-  <ul class="results">
+  <div class="tags">
     {% for pg in backlinks %}
-    <li>
-      <div class="result-path">{{ pg.slug.split('/')|join(' › ') }}</div>
-      <a class="result-title" href="/{{ pg.slug }}">{{ pg.title }}</a>
-    </li>
+    <a href="/{{ pg.slug }}" title="{{ pg.slug }}">{{ pg.title }}</a>
     {% endfor %}
-  </ul>
+  </div>
 </section>
 {% endif %}
 {% endblock %}

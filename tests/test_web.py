@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from wiskill.web.app import create_app, build_nav_tree
+from wiskill.web.app import create_app, build_nav_tree, _tag_cloud
 from wiskill.service import WikiService
 from wiskill.store import PageStore
 from wiskill.backend import LexicalBackend
@@ -185,8 +185,8 @@ def test_tag_chip_links_to_tag_page_and_lists_it(client):
 
     r = client.get("/tags")
     assert r.status_code == 200
-    assert '<a class="result-title" href="/tags/notes">#notes</a>' in r.text
-    assert '<span class="tree-count">(2)</span>' in r.text
+    assert '<a class="tag-cloud-item tier-5" href="/tags/notes" title="2 pages">#notes</a>' in r.text
+    assert '<a class="tag-cloud-item tier-1" href="/tags/auth" title="1 page">#auth</a>' in r.text
 
     r = client.get("/tags/notes")
     assert r.status_code == 200
@@ -213,7 +213,7 @@ def test_tags_index_and_tag_page_exclude_private_namespace_for_anon(tmp_path, mo
 
     r = c.get("/tags")
     assert r.status_code == 200
-    assert '<span class="tree-count">(1)</span>' in r.text  # "shared" only counts the public page
+    assert 'title="1 page"' in r.text  # "shared" only counts the public page
     assert "diary" not in r.text  # only appears on the private page
 
     r = c.get("/tags/shared")
@@ -232,7 +232,7 @@ def test_page_shows_toc_and_backlinks(client):
     r = client.get("/target")
     assert r.status_code == 200
     assert '<li class="toc-h2"><a href="#section-one">Section One</a></li>' in r.text
-    assert 'result-title" href="/linker"' in r.text  # backlinks panel
+    assert '<a href="/linker" title="linker">Linker</a>' in r.text  # backlinks panel
 
 
 def test_backlinks_exclude_private_namespace_linker_for_anon(tmp_path, monkeypatch):
@@ -377,6 +377,22 @@ def test_build_nav_tree_groups_namespaces_before_leaves():
     # namespaces with sub-pages (semlix, wiskill) group before leaf pages
     # (bashblog, bpaste); alphabetical within each group.
     assert names == ["semlix", "wiskill", "bashblog", "bpaste"]
+
+
+def test_tag_cloud_scales_tier_by_relative_weight():
+    cloud = _tag_cloud({"rare": 1, "mid": 3, "common": 5})
+    by_tag = {tag: tier for tag, _count, tier in cloud}
+    assert by_tag == {"rare": 1, "mid": 3, "common": 5}
+    assert [tag for tag, _count, _tier in cloud] == ["common", "mid", "rare"]  # alphabetical
+
+
+def test_tag_cloud_flat_weight_when_all_counts_equal():
+    cloud = _tag_cloud({"a": 2, "b": 2})
+    assert [tier for _tag, _count, tier in cloud] == [3, 3]
+
+
+def test_tag_cloud_empty():
+    assert _tag_cloud({}) == []
 
 
 @pytest.fixture

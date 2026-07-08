@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ page.title }} — {{ stamp }}{% endblock %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="/">Home</a> <span class="sep">/</span>
+  <a href="/{{ slug }}">{{ slug }}</a> <span class="sep">/</span>
+  <a href="/{{ slug }}/history">History</a> <span class="sep">/</span> {{ stamp }}
+</div>
+<h1 class="page-title">{{ page.title }}</h1>
+<div class="meta">
+  <span>Revision from {{ page.updated.strftime('%b %d, %Y %H:%M UTC') }} — read-only</span>
+</div>
+<hr class="rule">
+<article class="prose">{{ html|safe }}</article>
+{% if user and user.role.value in ['editor', 'admin'] %}
+<div class="actions">
+  <form action="/{{ slug }}/history/{{ stamp }}/restore" method="post"
+        onsubmit="return confirm('Restore this revision as the current page?')">
+    <button class="btn btn-primary" type="submit">Restore this revision</button>
+  </form>
+  <a class="btn" href="/{{ slug }}">Cancel</a>
+</div>
+{% endif %}
+{% endblock %}

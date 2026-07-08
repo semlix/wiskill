@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from wiskill.auth import Principal, Role, UserStore
-from wiskill.markup import clean_snippet_html, plain_summary
+from wiskill.markup import clean_snippet_html, plain_summary, render_html
 from wiskill.service import PermissionError, WikiService
 
 _HERE = Path(__file__).parent
@@ -343,6 +343,49 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
             "meta_title": f"Edit {slug}",
             "nav_pages": (lambda: nav_pages_for(True)),
                  "nav_tree": (lambda: nav_tree_for(True))})
+
+    @app.get("/{slug:path}/history", response_class=HTMLResponse)
+    def history_list(request: Request, slug: str):
+        p = current(request)
+        if p is None:
+            return RedirectResponse("/login", status_code=307)
+        revisions = [(s, service.store.format_stamp(s)) for s in service.store.history(slug)]
+        return templates.TemplateResponse(request, "history.html", {
+            "slug": slug, "revisions": revisions, "user": p,
+            "meta_title": f"History: {slug}",
+            "nav_pages": (lambda: nav_pages_for(True)),
+            "nav_tree": (lambda: nav_tree_for(True))})
+
+    @app.get("/{slug:path}/history/{stamp}", response_class=HTMLResponse)
+    def history_view(request: Request, slug: str, stamp: str):
+        p = current(request)
+        if p is None:
+            return RedirectResponse("/login", status_code=307)
+        ts = service.store.parse_stamp(stamp)
+        old = service.store.read_history(slug, ts) if ts else None
+        if old is None:
+            return HTMLResponse("Revision not found", status_code=404)
+        return templates.TemplateResponse(request, "history_view.html", {
+            "slug": slug, "stamp": stamp, "page": old,
+            "html": render_html(old.body, service.store.exists), "user": p,
+            "meta_title": f"{old.title} — {stamp}",
+            "nav_pages": (lambda: nav_pages_for(True)),
+            "nav_tree": (lambda: nav_tree_for(True))})
+
+    @app.post("/{slug:path}/history/{stamp}/restore")
+    def history_restore(request: Request, slug: str, stamp: str):
+        p = current(request)
+        if p is None:
+            return RedirectResponse("/login", status_code=307)
+        ts = service.store.parse_stamp(stamp)
+        old = service.store.read_history(slug, ts) if ts else None
+        if old is None:
+            return HTMLResponse("Revision not found", status_code=404)
+        try:
+            service.save(slug, old.body, title=old.title, tags=old.tags, principal=p)
+        except PermissionError:
+            return HTMLResponse("Forbidden", status_code=403)
+        return RedirectResponse(f"/{slug}", status_code=303)
 
     @app.post("/{slug:path}/delete")
     def delete(request: Request, slug: str):

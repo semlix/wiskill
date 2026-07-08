@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterator
 
@@ -29,10 +29,18 @@ def _now() -> datetime:
     return datetime.now(timezone.utc).replace(microsecond=0)
 
 
+_HISTORY_STAMP = "%Y%m%dT%H%M%S%f"
+
+
 class PageStore:
-    def __init__(self, pages_dir: Path):
+    def __init__(self, pages_dir: Path, history_dir: Path | None = None):
         self.pages_dir = Path(pages_dir)
         self.pages_dir.mkdir(parents=True, exist_ok=True)
+        # Snapshots of prior revisions, one file per save. Defaults to a
+        # sibling of pages_dir (never nested inside it — list_slugs()/
+        # iter_pages() rglob pages_dir for "*.md" and would otherwise treat
+        # every snapshot as its own page).
+        self.history_dir = Path(history_dir) if history_dir else self.pages_dir.parent / "history"
 
     def slug_to_path(self, slug: str) -> Path:
         slug = slug.strip()
@@ -87,12 +95,75 @@ class PageStore:
             body=body,
         )
 
+    def _history_dir_for(self, slug: str) -> Path:
+        return self.history_dir.joinpath(*slug.split("/"))
+
+    @staticmethod
+    def parse_stamp(stamp: str) -> datetime | None:
+        """Parse a history() timestamp back from its URL path-segment form
+        (e.g. from `/{slug}/history/{stamp}`); None if malformed."""
+        try:
+            return datetime.strptime(stamp, _HISTORY_STAMP).replace(tzinfo=timezone.utc)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def format_stamp(stamp: datetime) -> str:
+        """Inverse of parse_stamp — the URL path-segment form of a
+        history() timestamp."""
+        return stamp.strftime(_HISTORY_STAMP)
+
+    def _snapshot(self, slug: str, raw_text: str) -> None:
+        """Save the file content being replaced, named by the current instant
+        (microsecond precision, nudged forward on collision — two saves in
+        the same request-response cycle are the only realistic case)."""
+        hist_dir = self._history_dir_for(slug)
+        hist_dir.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now(timezone.utc)
+        path = hist_dir / f"{stamp.strftime(_HISTORY_STAMP)}.md"
+        while path.exists():
+            stamp += timedelta(microseconds=1)
+            path = hist_dir / f"{stamp.strftime(_HISTORY_STAMP)}.md"
+        atomic_write_text(path, raw_text)
+
+    def history(self, slug: str) -> list[datetime]:
+        """Timestamps of prior revisions of `slug`, newest first. The
+        current content (in the main page file) isn't included."""
+        hist_dir = self._history_dir_for(slug)
+        if not hist_dir.exists():
+            return []
+        stamps = []
+        for f in hist_dir.glob("*.md"):
+            try:
+                stamps.append(datetime.strptime(f.stem, _HISTORY_STAMP).replace(tzinfo=timezone.utc))
+            except ValueError:
+                continue
+        return sorted(stamps, reverse=True)
+
+    def read_history(self, slug: str, stamp: datetime) -> Page | None:
+        """A prior revision of `slug` as it was at `stamp` (from history())."""
+        path = self._history_dir_for(slug) / f"{stamp.strftime(_HISTORY_STAMP)}.md"
+        if not path.exists():
+            return None
+        meta, body = self._split_front_matter(path.read_text(encoding="utf-8"))
+        default_title = slug.rsplit("/", 1)[-1]
+        return Page(
+            slug=slug,
+            title=str(meta.get("title") or default_title),
+            tags=list(meta.get("tags") or []),
+            created=self._parse_dt(meta.get("created")),
+            updated=self._parse_dt(meta.get("updated")),
+            body=body,
+        )
+
     def write(self, slug: str, body: str, title: str | None = None,
               tags: list[str] | None = None) -> Page:
         path = self.slug_to_path(slug)
         path.parent.mkdir(parents=True, exist_ok=True)
         now = _now()
         existing = self.read(slug)
+        if existing is not None:
+            self._snapshot(slug, path.read_text(encoding="utf-8"))
         created = existing.created if existing else now
         page = Page(
             slug=slug,

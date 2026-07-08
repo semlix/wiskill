@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import pytest
 from wiskill.store import PageStore, Page
 
@@ -56,3 +58,42 @@ def test_exists_and_read_degrade_gracefully_on_malformed_slug(store, bad):
     # raise, unlike write()/delete() which are real user actions.
     assert store.exists(bad) is False
     assert store.read(bad) is None
+
+
+def test_write_snapshots_previous_revision(store, tmp_path):
+    store.write("a", "v1", title="A", tags=[])
+    store.write("a", "v2", title="A", tags=[])
+    store.write("a", "v3", title="A", tags=[])
+    stamps = store.history("a")
+    assert len(stamps) == 2  # v1 and v2 snapshotted; v3 is the current file
+    assert stamps == sorted(stamps, reverse=True)  # newest first
+    bodies = [store.read_history("a", s).body for s in stamps]
+    assert bodies == ["v2", "v1"]
+    assert store.read("a").body == "v3"  # current content untouched
+
+
+def test_first_write_has_no_history(store):
+    store.write("a", "v1", title="A", tags=[])
+    assert store.history("a") == []
+
+
+def test_history_empty_for_unknown_slug(store):
+    assert store.history("nope") == []
+    assert store.read_history("nope", datetime.now(timezone.utc)) is None
+
+
+def test_history_snapshots_stay_outside_pages_dir(store, tmp_path):
+    store.write("a", "v1", title="A", tags=[])
+    store.write("a", "v2", title="A", tags=[])
+    # A snapshot must never be picked up as if it were its own page.
+    assert store.list_slugs() == ["a"]
+    assert not store.history_dir.is_relative_to(store.pages_dir)
+
+
+def test_parse_stamp_roundtrip(store):
+    store.write("a", "v1", title="A", tags=[])
+    store.write("a", "v2", title="A", tags=[])
+    [stamp] = store.history("a")
+    text = stamp.strftime("%Y%m%dT%H%M%S%f")
+    assert store.parse_stamp(text) == stamp
+    assert store.parse_stamp("not-a-stamp") is None

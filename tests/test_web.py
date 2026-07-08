@@ -259,6 +259,41 @@ def test_home_renders_index_page(client):
     assert "welcome body zzz" in r.text  # renders the index page, not a listing
 
 
+def test_history_list_view_and_restore_flow(client):
+    _login(client)
+    client.post("/a", data={"title": "A", "tags": "", "body": "v1"}, follow_redirects=False)
+    client.post("/a", data={"title": "A", "tags": "", "body": "v2"}, follow_redirects=False)
+
+    r = client.get("/a/history")
+    assert r.status_code == 200
+    assert r.text.count('class="result-title"') == 1  # v1 snapshotted, v2 is current
+
+    href = r.text.split('href="/a/history/')[1].split('"')[0]
+    r = client.get(f"/a/history/{href}")
+    assert r.status_code == 200
+    assert "v1" in r.text
+    assert "Restore this revision" in r.text
+
+    r = client.post(f"/a/history/{href}/restore", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/a"
+    assert client.get("/a").text.count("v1") >= 1
+    # restoring v1 (over v2) snapshotted v2, so history now has 2 entries
+    assert client.get("/a/history").text.count('class="result-title"') == 2
+
+
+def test_history_requires_login(client):
+    client.post("/a", data={"title": "A", "tags": "", "body": "v1"}, follow_redirects=False)  # anon can't; ignore
+    r = client.get("/a/history", follow_redirects=False)
+    assert r.status_code == 307 and "/login" in r.headers["location"]
+
+
+def test_history_unknown_revision_404s(client):
+    _login(client)
+    client.post("/a", data={"title": "A", "tags": "", "body": "v1"}, follow_redirects=False)
+    assert client.get("/a/history/20260101T000000000000").status_code == 404
+    assert client.post("/a/history/20260101T000000000000/restore").status_code == 404
+
+
 def test_new_page_flow(client):
     _login(client)
     # empty slug re-renders the form (does not 500)

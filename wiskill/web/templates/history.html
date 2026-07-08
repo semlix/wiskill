@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}History: {{ slug }}{% endblock %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="/">Home</a> <span class="sep">/</span>
+  <a href="/{{ slug }}">{{ slug }}</a> <span class="sep">/</span> History
+</div>
+<h1 class="page-title">History</h1>
+<p class="meta">{{ revisions|length }} prior revision{{ '' if revisions|length == 1 else 's' }}</p>
+<hr class="rule">
+{% if revisions %}
+<ul class="results">
+  {% for stamp, url_stamp in revisions %}
+  <li>
+    <a class="result-title" href="/{{ slug }}/history/{{ url_stamp }}">{{ stamp.strftime('%b %d, %Y %H:%M UTC') }}</a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty">No prior revisions yet — every save after this one gets snapshotted.</p>
+{% endif %}
+{% endblock %}

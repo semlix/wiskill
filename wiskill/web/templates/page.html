@@ -27,6 +27,7 @@
 {% if user and user.role.value in ['editor', 'admin'] %}
 <div class="actions">
   <a class="btn btn-primary" href="/{{ slug }}/edit">Edit</a>
+  <a class="btn" href="/{{ slug }}/history">History</a>
   <form action="/{{ slug }}/delete" method="post" onsubmit="return confirm('Delete this page?')">
     <button class="btn btn-danger" type="submit">Delete</button>
   </form>

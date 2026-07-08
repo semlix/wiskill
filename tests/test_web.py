@@ -240,6 +240,16 @@ def test_stylesheet_link_is_cache_busted(client):
     assert "/static/style.css?v=" in r.text
 
 
+def test_footer_shows_version_without_repeating_brand_name(client):
+    _login(client)
+    r = client.get("/")
+    assert r.status_code == 200
+    import re
+    assert re.search(r"wiskill v\d+\.\d+\.\d+", r.text)
+    assert "wiskill on GitHub" not in r.text
+    assert "built with wiskill" not in r.text
+
+
 def test_build_nav_tree_groups_namespaces_before_leaves():
     tree = build_nav_tree([
         "index",

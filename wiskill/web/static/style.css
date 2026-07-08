@@ -135,12 +135,14 @@ a.tree-leaf:hover { text-decoration: underline; }
   padding: 2rem clamp(1.25rem, 5vw, 4rem);
   font-size: .85rem; color: var(--ink-soft);
 }
-.foot-cols { display: flex; flex-wrap: wrap; gap: 2rem 3rem; width: 100%; }
-.foot-cols > div:first-child { flex: 1 1 220px; min-width: 180px; }
-.foot-links { flex: 0 0 auto; }
+.foot-row {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  justify-content: space-between; gap: .6rem 2rem; width: 100%;
+}
+.foot-brand-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem; }
 .foot-brand { font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 1.15rem; color: var(--ink); }
-.foot-tag { margin: .3rem 0 0; }
-.foot-links { display: flex; flex-direction: column; gap: .35rem; }
+.foot-tag { color: var(--ink-soft); }
+.foot-links { display: flex; flex-wrap: wrap; gap: 1rem; }
 .foot-links a { color: var(--ink-soft); }
 .foot-links a:hover { color: var(--accent); }
 .foot-bottom { width: 100%; margin: 1.6rem 0 0; padding-top: 1rem;

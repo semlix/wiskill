@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import os
 from contextlib import asynccontextmanager
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from fastapi import FastAPI, Form, HTTPException, Request
@@ -27,6 +28,11 @@ _SITE_DESC = ("A personal semantic wiki — Markdown notes with fast hybrid "
 _STYLE_CSS = _HERE / "static" / "style.css"
 _ASSET_V = (hashlib.sha256(_STYLE_CSS.read_bytes()).hexdigest()[:10]
             if _STYLE_CSS.exists() else "0")
+
+try:
+    _APP_VERSION = version("semlix-wiskill")
+except PackageNotFoundError:
+    _APP_VERSION = "0.0.0"
 
 
 def _nav_sort_key(name: str, has_children: bool) -> tuple:
@@ -126,6 +132,7 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
     templates = Jinja2Templates(directory=str(_HERE / "templates"))
     templates.env.globals["asset_v"] = _ASSET_V
+    templates.env.globals["app_version"] = _APP_VERSION
 
     def is_private(slug: str) -> bool:
         top = slug.split("/", 1)[0]

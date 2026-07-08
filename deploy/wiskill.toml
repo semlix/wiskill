@@ -24,3 +24,4 @@ session_ttl_hours = 168
 [web]
 public_read = true       # anonymous view + search; editing needs an account
 mcp_require_key = true    # /mcp requires a valid editor API key
+site_url = "https://wiskill.barrahome.org"  # for /sitemap.xml and robots.txt's Sitemap: line

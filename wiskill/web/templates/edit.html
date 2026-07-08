@@ -32,6 +32,27 @@
   // Progressive enhancement: if the CDN is unreachable, the plain <textarea>
   // still works and the form still submits `body`.
   if (window.EasyMDE) {
+    // EasyMDE's preview only knows plain Markdown, not our [[wikilink]]
+    // syntax — without this, Preview/side-by-side shows the raw brackets
+    // instead of the link the saved page would actually render. Existing
+    // slugs come from the sidebar tree already in the DOM (every real page
+    // this user can see has a `.tree-leaf[href]` there), same source of
+    // truth the server uses to decide missing vs. existing.
+    var existingSlugs = new Set(
+      Array.from(document.querySelectorAll(".tree-leaf[href]"))
+        .map(function (a) { return a.getAttribute("href").replace(/^\//, ""); })
+    );
+    var WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+    function renderWikilinks(html) {
+      return html.replace(WIKILINK_RE, function (_, slug, label) {
+        slug = slug.trim();
+        var text = (label || slug).trim();
+        var exists = existingSlugs.has(slug);
+        var href = exists ? "/" + slug : "/" + slug + "/edit";
+        var cls = exists ? "wikilink" : "wikilink missing";
+        return '<a href="' + href + '" class="' + cls + '">' + text + "</a>";
+      });
+    }
     new EasyMDE({
       element: document.getElementById("body"),
       spellChecker: false,
@@ -41,6 +62,9 @@
       toolbar: ["bold", "italic", "heading", "|", "quote", "unordered-list",
                 "ordered-list", "code", "|", "link", "table", "horizontal-rule",
                 "|", "preview", "side-by-side", "fullscreen", "|", "guide"],
+      previewRender: function (plainText) {
+        return renderWikilinks(this.markdown(plainText));
+      },
     });
   }
 </script>

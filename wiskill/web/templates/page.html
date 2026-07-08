@@ -11,7 +11,7 @@
   <span>Updated {{ page.updated.strftime('%b %d, %Y') }}</span>
   <span class="result-slug">{{ slug }}</span>
 </div>
-{% if page.tags %}<p class="tags">{% for t in page.tags %}<span>#{{ t }}</span>{% endfor %}</p>{% endif %}
+{% if page.tags %}<p class="tags">{% for t in page.tags %}<a href="/tags/{{ t }}">#{{ t }}</a>{% endfor %}</p>{% endif %}
 <hr class="rule">
 <article class="prose">{{ html|safe }}</article>
 {% if user and user.role.value in ['editor', 'admin'] %}

@@ -265,6 +265,41 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
             "meta_description": (f"Search results for “{q}”." if q else _SITE_DESC),
             **_common(p, authed)})
 
+    @app.get("/tags", response_class=HTMLResponse)
+    def tags_index(request: Request):
+        p, authed = viewer(request)
+        if p is None:
+            return RedirectResponse("/login", status_code=307)
+        if authed:
+            counts = service.tags_index()
+        else:
+            # A private-namespace page's tags shouldn't leak counts/existence.
+            counts: dict[str, int] = {}
+            for page in service.store.iter_pages():
+                if is_private(page.slug):
+                    continue
+                for t in page.tags:
+                    counts[t] = counts.get(t, 0) + 1
+        tags = sorted(counts.items())
+        return templates.TemplateResponse(request, "tags.html", {
+            "tags": tags, "meta_title": "Tags",
+            "meta_description": "Browse notes by tag.",
+            **_common(p, authed)})
+
+    @app.get("/tags/{tag}", response_class=HTMLResponse)
+    def tag_pages(request: Request, tag: str):
+        p, authed = viewer(request)
+        if p is None:
+            return RedirectResponse("/login", status_code=307)
+        pages = service.pages_by_tag(tag)
+        if not authed:
+            pages = [pg for pg in pages if not is_private(pg.slug)]
+        return templates.TemplateResponse(request, "tag.html", {
+            "tag": tag, "pages": pages,
+            "meta_title": f"Tag: {tag}",
+            "meta_description": f"Notes tagged “{tag}”.",
+            **_common(p, authed)})
+
     @app.get("/new", response_class=HTMLResponse)
     def new_form(request: Request, error: str | None = None):
         p = current(request)

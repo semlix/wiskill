@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Tags{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="/">Home</a> <span class="sep">/</span> Tags</div>
+<h1 class="page-title">Tags</h1>
+<p class="meta">{{ tags|length }} tag{{ '' if tags|length == 1 else 's' }}</p>
+<hr class="rule">
+{% if tags %}
+<ul class="results">
+  {% for tag, count in tags %}
+  <li>
+    <a class="result-title" href="/tags/{{ tag }}">#{{ tag }}</a>
+    <span class="tree-count">({{ count }})</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty">No tags yet.</p>
+{% endif %}
+{% endblock %}

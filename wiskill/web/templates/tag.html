@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Tag: {{ tag }}{% endblock %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="/">Home</a> <span class="sep">/</span>
+  <a href="/tags">Tags</a> <span class="sep">/</span> {{ tag }}
+</div>
+<h1 class="page-title">#{{ tag }}</h1>
+<p class="meta">{{ pages|length }} page{{ '' if pages|length == 1 else 's' }}</p>
+<hr class="rule">
+{% if pages %}
+<ul class="results">
+  {% for pg in pages %}
+  <li>
+    <div class="result-path">{{ pg.slug.split('/')|join(' › ') }}</div>
+    <a class="result-title" href="/{{ pg.slug }}">{{ pg.title }}</a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty">No pages tagged “{{ tag }}”.</p>
+{% endif %}
+{% endblock %}

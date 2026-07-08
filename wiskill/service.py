@@ -63,5 +63,19 @@ class WikiService:
     def list_pages(self, namespace: str | None = None) -> list[str]:
         return self.store.list_slugs(namespace)
 
+    def tags_index(self) -> dict[str, int]:
+        """{tag: page count}, for browsing all tags in use."""
+        counts: dict[str, int] = {}
+        for page in self.store.iter_pages():
+            for tag in page.tags:
+                counts[tag] = counts.get(tag, 0) + 1
+        return counts
+
+    def pages_by_tag(self, tag: str) -> list[Page]:
+        """Pages carrying `tag`, newest-updated first."""
+        pages = [p for p in self.store.iter_pages() if tag in p.tags]
+        pages.sort(key=lambda p: p.updated, reverse=True)
+        return pages
+
     def reindex(self) -> dict:
         return reconcile(self.backend, self.store)

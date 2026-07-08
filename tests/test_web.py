@@ -173,6 +173,54 @@ def test_private_namespace_visible_to_logged_in_user(private_ns_client):
     assert "notes/secret" in private_ns_client.get("/").text
 
 
+def test_tag_chip_links_to_tag_page_and_lists_it(client):
+    _login(client)
+    client.post("/notas/x", data={"title": "X", "tags": "auth, notes", "body": "hola"},
+                follow_redirects=False)
+    client.post("/notas/y", data={"title": "Y", "tags": "notes", "body": "adios"},
+                follow_redirects=False)
+    r = client.get("/notas/x")
+    assert r.status_code == 200
+    assert '<a href="/tags/auth">#auth</a>' in r.text
+
+    r = client.get("/tags")
+    assert r.status_code == 200
+    assert '<a class="result-title" href="/tags/notes">#notes</a>' in r.text
+    assert '<span class="tree-count">(2)</span>' in r.text
+
+    r = client.get("/tags/notes")
+    assert r.status_code == 200
+    assert "notas/x" in r.text and "notas/y" in r.text
+
+    r = client.get("/tags/auth")
+    assert r.status_code == 200
+    assert 'result-title" href="/notas/x"' in r.text
+    assert 'result-title" href="/notas/y"' not in r.text
+
+
+def test_tags_index_and_tag_page_exclude_private_namespace_for_anon(tmp_path, monkeypatch):
+    from wiskill.auth import Principal, Role
+    monkeypatch.setenv("WISKILL_SECRET", "s")
+    service = WikiService(PageStore(tmp_path / "pages"), LexicalBackend(tmp_path / "idx"))
+    ed = Principal("ed", Role.EDITOR)
+    service.save("projects/foo", "public", title="Foo", tags=["shared"], principal=ed)
+    service.save("notes/secret", "private diary", title="Secret", tags=["shared", "diary"],
+                 principal=ed)
+    users = UserStore(tmp_path / "users.json")
+    app = create_app(service, users,
+                     WiskillConfig(public_read=True, private_namespaces=("notes",)))
+    c = TestClient(app)
+
+    r = c.get("/tags")
+    assert r.status_code == 200
+    assert '<span class="tree-count">(1)</span>' in r.text  # "shared" only counts the public page
+    assert "diary" not in r.text  # only appears on the private page
+
+    r = c.get("/tags/shared")
+    assert r.status_code == 200
+    assert "projects/foo" in r.text and "notes/secret" not in r.text
+
+
 def test_home_renders_index_page(client):
     _login(client)
     client.post("/index", data={"title": "Home", "tags": "", "body": "welcome body zzz"},

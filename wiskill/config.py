@@ -22,6 +22,9 @@ class WiskillConfig:
     session_secret_env: str = "WISKILL_SECRET"
     session_ttl_hours: int = 168
     public_read: bool = False   # allow anonymous view + search (no login to read)
+    site_url: str = ""   # public base URL (e.g. "https://wiskill.barrahome.org"),
+    # used to build absolute URLs for /sitemap.xml and the /robots.txt
+    # Sitemap: line. Empty => sitemap.xml is disabled (404).
     mcp_require_key: bool = False  # require an API key on /mcp when served over HTTP
     mcp_allowed_hosts: tuple[str, ...] = ()  # Host headers the MCP transport accepts
     # (e.g. your public domain). Empty = disable the MCP SDK's DNS-rebinding
@@ -74,6 +77,7 @@ def load_config(path: str | Path | None = None) -> WiskillConfig:
         session_secret_env=auth.get("session_secret_env", defaults.session_secret_env),
         session_ttl_hours=int(auth.get("session_ttl_hours", defaults.session_ttl_hours)),
         public_read=bool(web.get("public_read", defaults.public_read)),
+        site_url=str(web.get("site_url", defaults.site_url)),
         mcp_require_key=bool(web.get("mcp_require_key", defaults.mcp_require_key)),
         mcp_allowed_hosts=tuple(web.get("mcp_allowed_hosts", defaults.mcp_allowed_hosts)),
         private_namespaces=tuple(web.get("private_namespaces", defaults.private_namespaces)),

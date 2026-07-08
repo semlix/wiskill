@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from wiskill.web.app import create_app
+from wiskill.web.app import create_app, build_nav_tree
 from wiskill.service import WikiService
 from wiskill.store import PageStore
 from wiskill.backend import LexicalBackend
@@ -179,3 +179,75 @@ def test_bad_credentials(client):
     r = client.post("/login", data={"username": "ed", "password": "nope"})
     assert r.status_code == 200
     assert "inválid" in r.text.lower() or "invalid" in r.text.lower()
+
+
+def test_build_nav_tree_groups_namespaces_before_leaves():
+    tree = build_nav_tree([
+        "index",
+        "projects",
+        "projects/bashblog",
+        "projects/bpaste",
+        "projects/semlix",
+        "projects/semlix/engines",
+        "projects/wiskill",
+        "projects/wiskill/cli",
+    ])
+    names = list(tree["projects"]["children"].keys())
+    # namespaces with sub-pages (semlix, wiskill) group before leaf pages
+    # (bashblog, bpaste); alphabetical within each group.
+    assert names == ["semlix", "wiskill", "bashblog", "bpaste"]
+
+
+@pytest.fixture
+def sitemap_client(tmp_path, monkeypatch):
+    from wiskill.auth import Principal, Role
+    monkeypatch.setenv("WISKILL_SECRET", "s")
+    store = PageStore(tmp_path / "pages")
+    backend = LexicalBackend(tmp_path / "idx")
+    service = WikiService(store, backend)
+    ed = Principal("ed", Role.EDITOR)
+    service.save("index", "home body", title="Home", tags=[], principal=ed)
+    service.save("projects/foo", "foo body", title="Foo", tags=[], principal=ed)
+    service.save("notes/secret", "secret body", title="Secret", tags=[], principal=ed)
+    users = UserStore(tmp_path / "users.json")
+    app = create_app(service, users, WiskillConfig(
+        public_read=True, site_url="https://example.com",
+        private_namespaces=("notes",)))
+    return TestClient(app)
+
+
+def test_sitemap_lists_public_pages_excludes_private(sitemap_client):
+    r = sitemap_client.get("/sitemap.xml")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("application/xml")
+    assert "<loc>https://example.com/projects/foo</loc>" in r.text
+    assert "<loc>https://example.com/index</loc>" in r.text
+    assert "notes/secret" not in r.text
+
+
+def test_sitemap_404_without_site_url(public_client):
+    # public_client (existing fixture): public_read=True, site_url unset
+    assert public_client.get("/sitemap.xml").status_code == 404
+
+
+def test_sitemap_404_when_public_read_false_even_with_site_url(tmp_path, monkeypatch):
+    monkeypatch.setenv("WISKILL_SECRET", "s")
+    service = WikiService(PageStore(tmp_path / "p"), LexicalBackend(tmp_path / "i"))
+    users = UserStore(tmp_path / "u.json")
+    app = create_app(service, users, WiskillConfig(site_url="https://example.com"))
+    assert TestClient(app).get("/sitemap.xml").status_code == 404
+
+
+def test_robots_always_200_blocks_all_except_googlebot(client):
+    r = client.get("/robots.txt")
+    assert r.status_code == 200
+    assert "Disallow: /" in r.text
+    assert "User-agent: Googlebot" in r.text
+    assert "Allow: /" in r.text
+    assert "Sitemap:" not in r.text  # no site_url configured on `client`
+
+
+def test_robots_includes_sitemap_line_when_configured(sitemap_client):
+    r = sitemap_client.get("/robots.txt")
+    assert r.status_code == 200
+    assert "Sitemap: https://example.com/sitemap.xml" in r.text

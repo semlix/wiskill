@@ -5,8 +5,8 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -20,9 +20,11 @@ _SITE_DESC = ("A personal semantic wiki — Markdown notes with fast hybrid "
               "lexical + semantic search.")
 
 
-def _nav_sort_key(name: str) -> tuple:
-    """'index' always first, everything else alphabetical."""
-    return (name != "index", name)
+def _nav_sort_key(name: str, has_children: bool) -> tuple:
+    """'index' first, then namespaces-with-children (alpha), then leaf
+    pages (alpha) — so expandable nodes group together instead of
+    interleaving with plain pages at the same level."""
+    return (name != "index", not has_children, name)
 
 
 def build_nav_tree(slugs: list[str]) -> dict:
@@ -44,7 +46,8 @@ def build_nav_tree(slugs: list[str]) -> dict:
             node = entry["children"]
 
     def finalize(d: dict) -> dict:
-        ordered = {k: d[k] for k in sorted(d.keys(), key=_nav_sort_key)}
+        ordered = {k: d[k] for k in sorted(
+            d.keys(), key=lambda k: _nav_sort_key(k, bool(d[k]["children"])))}
         for v in ordered.values():
             v["children"] = finalize(v["children"])
             v["count"] = (1 if v["slug"] else 0) + sum(
@@ -52,6 +55,25 @@ def build_nav_tree(slugs: list[str]) -> dict:
         return ordered
 
     return finalize(root)
+
+
+def _render_sitemap(base_url: str, pages: list) -> str:
+    """Build a sitemap.xml body from Page objects. `base_url` has no
+    trailing slash — pages are served at `/{slug}` directly (the root
+    catch-all route), not under a `/p/` prefix."""
+    entries = "\n".join(
+        "  <url>\n"
+        f"    <loc>{base_url}/{p.slug}</loc>\n"
+        f"    <lastmod>{p.updated.strftime('%Y-%m-%d')}</lastmod>\n"
+        "  </url>"
+        for p in pages
+    )
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{entries}\n"
+        "</urlset>\n"
+    )
 
 
 def create_app(service: WikiService, users: UserStore, config, apikeys=None,
@@ -159,6 +181,23 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
     def logout(request: Request):
         request.session.clear()
         return RedirectResponse("/login", status_code=303)
+
+    @app.get("/sitemap.xml")
+    def sitemap():
+        if not config.site_url or not config.public_read:
+            raise HTTPException(status_code=404)
+        slugs = nav_pages_for(False)
+        pages = [p for p in (service.get(s) for s in slugs) if p is not None]
+        xml = _render_sitemap(config.site_url.rstrip("/"), pages)
+        return Response(content=xml, media_type="application/xml")
+
+    @app.get("/robots.txt", response_class=PlainTextResponse)
+    def robots():
+        lines = ["User-agent: *", "Disallow: /", "",
+                 "User-agent: Googlebot", "Allow: /"]
+        if config.site_url and config.public_read:
+            lines += ["", f"Sitemap: {config.site_url.rstrip('/')}/sitemap.xml"]
+        return "\n".join(lines) + "\n"
 
     def _common(p, authed):
         return {"user": p, "authenticated": authed, "public": config.public_read,

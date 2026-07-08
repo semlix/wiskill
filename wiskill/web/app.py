@@ -1,6 +1,7 @@
 """FastAPI web UI (server-rendered Jinja2) + session auth."""
 from __future__ import annotations
 
+import hashlib
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -18,6 +19,14 @@ from wiskill.service import PermissionError, WikiService
 _HERE = Path(__file__).parent
 _SITE_DESC = ("A personal semantic wiki — Markdown notes with fast hybrid "
               "lexical + semantic search.")
+
+# Cache-busting query string for /static/style.css: a short hash of the
+# file's own bytes, computed once at import time. Changes automatically
+# whenever the CSS changes, so a CDN (e.g. Cloudflare) caching the URL by
+# path never serves a stale copy after a deploy.
+_STYLE_CSS = _HERE / "static" / "style.css"
+_ASSET_V = (hashlib.sha256(_STYLE_CSS.read_bytes()).hexdigest()[:10]
+            if _STYLE_CSS.exists() else "0")
 
 
 def _nav_sort_key(name: str, has_children: bool) -> tuple:
@@ -116,6 +125,7 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
     )
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
     templates = Jinja2Templates(directory=str(_HERE / "templates"))
+    templates.env.globals["asset_v"] = _ASSET_V
 
     def is_private(slug: str) -> bool:
         top = slug.split("/", 1)[0]

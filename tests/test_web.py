@@ -197,6 +197,12 @@ def test_bad_credentials(client):
     assert "inválid" in r.text.lower() or "invalid" in r.text.lower()
 
 
+def test_stylesheet_link_is_cache_busted(client):
+    r = client.get("/login")
+    assert r.status_code == 200
+    assert "/static/style.css?v=" in r.text
+
+
 def test_build_nav_tree_groups_namespaces_before_leaves():
     tree = build_nav_tree([
         "index",

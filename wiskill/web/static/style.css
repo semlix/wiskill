@@ -176,6 +176,21 @@ h1, h2, h3 { font-family: "Fraunces", Georgia, serif; font-weight: 600; letter-s
 
 .rule { border: 0; border-top: 1px solid var(--line); margin: 1.4rem 0 2rem; }
 
+/* Per-page table of contents (h2/h3 only) */
+.toc {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: .8rem 1rem; margin: 0 0 1.8rem; font-size: .88rem; max-width: 420px;
+}
+.toc-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-soft); margin-bottom: .4rem; }
+.toc ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .25rem; }
+.toc a { color: var(--ink); }
+.toc a:hover { color: var(--accent); }
+.toc-h3 { padding-left: 1rem; }
+
+/* Backlinks panel */
+.backlinks { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+.backlinks h2 { font-size: 1.1rem; margin: 0 0 .8rem; }
+
 /* Rendered markdown */
 .prose { font-size: 1.06rem; line-height: 1.75; color: #2b261d; }
 .prose > *:first-child { margin-top: 0; }

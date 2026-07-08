@@ -13,6 +13,16 @@
 </div>
 {% if page.tags %}<p class="tags">{% for t in page.tags %}<a href="/tags/{{ t }}">#{{ t }}</a>{% endfor %}</p>{% endif %}
 <hr class="rule">
+{% if toc %}
+<nav class="toc" aria-label="On this page">
+  <div class="toc-label">On this page</div>
+  <ul>
+    {% for level, id, text in toc %}
+    <li class="toc-h{{ level }}"><a href="#{{ id }}">{{ text }}</a></li>
+    {% endfor %}
+  </ul>
+</nav>
+{% endif %}
 <article class="prose">{{ html|safe }}</article>
 {% if user and user.role.value in ['editor', 'admin'] %}
 <div class="actions">
@@ -21,5 +31,18 @@
     <button class="btn btn-danger" type="submit">Delete</button>
   </form>
 </div>
+{% endif %}
+{% if backlinks %}
+<section class="backlinks">
+  <h2>Linked from</h2>
+  <ul class="results">
+    {% for pg in backlinks %}
+    <li>
+      <div class="result-path">{{ pg.slug.split('/')|join(' › ') }}</div>
+      <a class="result-title" href="/{{ pg.slug }}">{{ pg.title }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
 {% endif %}
 {% endblock %}

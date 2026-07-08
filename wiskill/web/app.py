@@ -155,6 +155,14 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
     templates.env.globals["nav_pages"] = lambda: nav_pages_for(False)
     templates.env.globals["nav_tree"] = lambda: nav_tree_for(False)
 
+    def page_extras(slug: str, authed: bool) -> dict:
+        """TOC + backlinks for page.html. Backlinks respect the same
+        private-namespace visibility as everything else an anon guest sees."""
+        backlinks = service.backlinks(slug)
+        if not authed:
+            backlinks = [b for b in backlinks if not is_private(b.slug)]
+        return {"toc": service.toc(slug), "backlinks": backlinks}
+
     # Mount MCP before the catch-all page routes so /mcp isn't captured as a slug.
     if mcp_app is not None:
         app.mount("/mcp", mcp_app)
@@ -237,7 +245,7 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         return templates.TemplateResponse(request, "page.html", {
             "slug": "index", "html": html, "page": page,
             "meta_title": page.title, "meta_description": plain_summary(page.body),
-            **_common(p, authed)})
+            **page_extras("index", authed), **_common(p, authed)})
 
     _PAGE_SIZES = (10, 25, 50, 100)
 
@@ -378,6 +386,6 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
         return templates.TemplateResponse(request, "page.html", {
             "slug": slug, "html": html, "page": page,
             "meta_title": page.title, "meta_description": plain_summary(page.body),
-            **_common(p, authed)})
+            **page_extras(slug, authed), **_common(p, authed)})
 
     return app

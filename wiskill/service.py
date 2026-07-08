@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from wiskill.auth import Principal, Role
 from wiskill.backend import reconcile, update_manifest_entry
-from wiskill.markup import render_html
+from wiskill.markup import extract_toc, extract_wikilinks, render_html
 from wiskill.store import Page, PageStore
 
 
@@ -39,6 +39,20 @@ class WikiService:
             return None
         children = self._direct_children(slug)
         return render_html(page.body, self.store.exists, children=children)
+
+    def toc(self, slug: str) -> list[tuple[int, str, str]]:
+        """(level, id, text) for h2/h3 headings on `slug`, [] if missing."""
+        page = self.store.read(slug)
+        if page is None:
+            return []
+        return extract_toc(page.body, self._direct_children(slug))
+
+    def backlinks(self, slug: str) -> list[Page]:
+        """Other pages that [[wikilink]] to `slug`, newest-updated first."""
+        pages = [p for p in self.store.iter_pages()
+                if p.slug != slug and slug in extract_wikilinks(p.body)]
+        pages.sort(key=lambda p: p.updated, reverse=True)
+        return pages
 
     def save(self, slug: str, body: str, title, tags, principal: Principal) -> Page:
         self._require(principal, Role.EDITOR)

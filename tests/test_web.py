@@ -221,6 +221,35 @@ def test_tags_index_and_tag_page_exclude_private_namespace_for_anon(tmp_path, mo
     assert "projects/foo" in r.text and "notes/secret" not in r.text
 
 
+def test_page_shows_toc_and_backlinks(client):
+    _login(client)
+    client.post("/target", data={"title": "Target", "tags": "",
+                "body": "## Section One\nbody\n\n## Section Two\nbody"},
+                follow_redirects=False)
+    client.post("/linker", data={"title": "Linker", "tags": "", "body": "see [[target]]"},
+                follow_redirects=False)
+
+    r = client.get("/target")
+    assert r.status_code == 200
+    assert '<li class="toc-h2"><a href="#section-one">Section One</a></li>' in r.text
+    assert 'result-title" href="/linker"' in r.text  # backlinks panel
+
+
+def test_backlinks_exclude_private_namespace_linker_for_anon(tmp_path, monkeypatch):
+    from wiskill.auth import Principal, Role
+    monkeypatch.setenv("WISKILL_SECRET", "s")
+    service = WikiService(PageStore(tmp_path / "pages"), LexicalBackend(tmp_path / "idx"))
+    ed = Principal("ed", Role.EDITOR)
+    service.save("target", "public target", title="Target", tags=[], principal=ed)
+    service.save("notes/secret", "see [[target]]", title="Secret", tags=[], principal=ed)
+    users = UserStore(tmp_path / "users.json")
+    app = create_app(service, users,
+                     WiskillConfig(public_read=True, private_namespaces=("notes",)))
+    r = TestClient(app).get("/target")
+    assert r.status_code == 200
+    assert "Linked from" not in r.text  # the only backlink is from a private page
+
+
 def test_home_renders_index_page(client):
     _login(client)
     client.post("/index", data={"title": "Home", "tags": "", "body": "welcome body zzz"},

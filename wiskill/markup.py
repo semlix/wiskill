@@ -5,6 +5,7 @@ import re
 from typing import Callable
 
 from markdown_it import MarkdownIt
+from mdit_py_plugins.anchors import anchors_plugin
 from mdit_py_plugins.tasklists import tasklists_plugin
 from pygments import highlight as _pygments_highlight
 from pygments.formatters import HtmlFormatter
@@ -48,6 +49,10 @@ _md = (
     MarkdownIt("commonmark", {"html": False, "linkify": True, "highlight": _highlight_code})
     .enable(["table", "strikethrough", "linkify"])
     .use(tasklists_plugin)
+    # h2/h3 get an id="..." (GitHub-style slug) for the per-page TOC to link
+    # into; h1 is skipped since pages already start with a "# Title" that
+    # duplicates page.title.
+    .use(anchors_plugin, min_level=2, max_level=3)
 )
 _md.add_render_rule("s_open", lambda self, tokens, idx, options, env: "<del>")
 _md.add_render_rule("s_close", lambda self, tokens, idx, options, env: "</del>")
@@ -139,3 +144,21 @@ def render_html(body: str, exists: Callable[[str], bool],
     body = _expand_children_tag(body, children or [])
     html = _md.render(body)
     return _replace_wikilinks(html, exists)
+
+
+def extract_toc(body: str, children: list[tuple[str, str, str]] | None = None
+                ) -> list[tuple[int, str, str]]:
+    """(level, id, text) for each h2/h3 in `body`, using the exact same ids
+    the anchors_plugin core rule assigns during parsing — so a TOC link
+    `#id` always lands on the heading `render_html` actually produced."""
+    expanded = _expand_children_tag(body, children or [])
+    tokens = _md.parse(expanded)
+    toc: list[tuple[int, str, str]] = []
+    for i, tok in enumerate(tokens):
+        if tok.type != "heading_open" or tok.tag not in ("h2", "h3"):
+            continue
+        inline = tokens[i + 1]
+        text = "".join(c.content for c in (inline.children or [])
+                       if c.type in ("text", "code_inline"))
+        toc.append((int(tok.tag[1]), tok.attrs.get("id", ""), text))
+    return toc

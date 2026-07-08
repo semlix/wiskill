@@ -33,6 +33,28 @@ def test_reader_cannot_write(svc):
         svc.save("x", "body", title="X", tags=[], principal=READER)
 
 
+def test_toc_lists_h2_h3_only(svc):
+    svc.save("a", "# Title\n\n## First\nbody\n\n### Sub\nbody\n\n## Second\nbody",
+             title="A", tags=[], principal=EDITOR)
+    toc = svc.toc("a")
+    assert [level for level, _id, _text in toc] == [2, 3, 2]
+    assert [text for _level, _id, text in toc] == ["First", "Sub", "Second"]
+    assert toc[0][1] and toc[0][1] != toc[2][1]  # distinct heading ids
+
+
+def test_toc_empty_for_missing_page(svc):
+    assert svc.toc("nope") == []
+
+
+def test_backlinks_finds_pages_linking_here(svc):
+    svc.save("target", "the target page", title="Target", tags=[], principal=EDITOR)
+    svc.save("a", "see [[target]]", title="A", tags=[], principal=EDITOR)
+    svc.save("b", "see [[target|Target page]] too", title="B", tags=[], principal=EDITOR)
+    svc.save("c", "unrelated", title="C", tags=[], principal=EDITOR)
+    slugs = {p.slug for p in svc.backlinks("target")}
+    assert slugs == {"a", "b"}
+
+
 def test_remove_requires_editor(svc):
     svc.save("x", "body", title="X", tags=[], principal=EDITOR)
     with pytest.raises(PermissionError):

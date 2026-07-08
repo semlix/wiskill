@@ -9,6 +9,8 @@ from typing import Iterator
 
 import yaml
 
+from wiskill._atomic import atomic_write_text
+
 _SLUG_SEGMENT = re.compile(r"^[A-Za-z0-9._-]+$")
 _FRONT_MATTER = re.compile(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", re.DOTALL)
 
@@ -95,7 +97,7 @@ class PageStore:
             "updated": page.updated.isoformat(),
         }
         text = "---\n" + yaml.safe_dump(front, allow_unicode=True, sort_keys=False) + "---\n" + body
-        path.write_text(text, encoding="utf-8")
+        atomic_write_text(path, text)
         return page
 
     def delete(self, slug: str) -> bool:

@@ -18,6 +18,7 @@ except ImportError:
 from semlix.semantic import HybridSearcher, HybridIndexWriter
 from semlix.semantic.stores import NumpyVectorStore
 
+from wiskill._atomic import atomic_write_text
 from wiskill.store import Page
 
 WHOOSH_SCHEMA = Schema(
@@ -257,7 +258,7 @@ def _load_manifest(backend) -> dict:
 
 
 def _save_manifest(backend, manifest: dict) -> None:
-    _manifest_path(backend).write_text(json.dumps(manifest), encoding="utf-8")
+    atomic_write_text(_manifest_path(backend), json.dumps(manifest))
 
 
 def reconcile(backend, store) -> dict:

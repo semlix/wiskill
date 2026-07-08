@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from wiskill._atomic import atomic_write_text
+
 _SCRYPT_N = 2 ** 14
 _SCRYPT_R = 8
 _SCRYPT_P = 1
@@ -70,7 +72,7 @@ class UserStore:
         return {"users": {}}
 
     def _save(self, data: dict) -> None:
-        self.path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        atomic_write_text(self.path, json.dumps(data, indent=2))
 
     def add(self, username: str, password: str, role: Role) -> None:
         data = self._load()
@@ -132,11 +134,13 @@ class ApiKeyStore:
         return {"keys": {}}
 
     def _save(self, data: dict) -> None:
-        self.path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        atomic_write_text(self.path, json.dumps(data, indent=2))
 
     def create(self, label: str, role: Role) -> str:
-        key = secrets.token_urlsafe(32)
         data = self._load()
+        if any(rec["label"] == label for rec in data["keys"].values()):
+            raise ValueError(f"api key label exists: {label}")
+        key = secrets.token_urlsafe(32)
         data["keys"][hash_api_key(key)] = {"label": label, "role": role.value}
         self._save(data)
         return key

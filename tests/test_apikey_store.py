@@ -1,4 +1,15 @@
+import pytest
+
 from wiskill.auth import ApiKeyStore, Role
+
+
+def test_create_duplicate_label_raises(tmp_path):
+    ks = ApiKeyStore(tmp_path / "keys.json")
+    ks.create("ci-bot", Role.EDITOR)
+    with pytest.raises(ValueError):
+        ks.create("ci-bot", Role.READER)
+    # the original key/role survive the rejected duplicate
+    assert [l for l, _ in ks.list_keys()] == ["ci-bot"]
 
 
 def test_create_and_verify(tmp_path):

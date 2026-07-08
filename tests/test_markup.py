@@ -13,6 +13,22 @@ def test_gfm_features_render():
     assert "<code>code</code>" in html
 
 
+def test_fenced_code_gets_syntax_highlighted():
+    html = render_html('```python\ndef foo():\n    return 1\n```', lambda s: True)
+    assert '<pre><code class="language-python">' in html
+    assert '<span class="k">def</span>' in html
+
+
+def test_fenced_code_unknown_language_falls_back_plain():
+    html = render_html('```notalang\nhello\n```', lambda s: True)
+    assert '<pre><code class="language-notalang">hello\n</code></pre>' in html
+
+
+def test_fenced_code_no_language_is_plain():
+    html = render_html('```\nhello\n```', lambda s: True)
+    assert "<pre><code>hello\n</code></pre>" in html
+
+
 def test_raw_html_is_escaped():
     html = render_html("<script>alert(1)</script>", lambda s: True)
     assert "<script>" not in html

@@ -6,9 +6,31 @@ from typing import Callable
 
 from markdown_it import MarkdownIt
 from mdit_py_plugins.tasklists import tasklists_plugin
+from pygments import highlight as _pygments_highlight
+from pygments.formatters import HtmlFormatter
+from pygments.lexers import get_lexer_by_name
+from pygments.util import ClassNotFound
 
 _WIKILINK = re.compile(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
 _CHILDREN_TAG = re.compile(r"^\{\{children\}\}[ \t]*$", re.MULTILINE)
+
+# nowrap=True: return just the highlighted <span>s, no wrapping <pre>/<div> —
+# markdown-it's fence renderer supplies its own <pre><code class="language-x">.
+_PYGMENTS_FORMATTER = HtmlFormatter(nowrap=True)
+
+
+def _highlight_code(code: str, lang: str, _attrs: str) -> str:
+    """markdown-it `highlight` option. Returning "" (falsy) makes the fence
+    renderer fall back to a plain escaped <pre><code> block — an unknown or
+    missing language is not an error, just no colors."""
+    if not lang:
+        return ""
+    try:
+        lexer = get_lexer_by_name(lang, stripall=False)
+    except ClassNotFound:
+        return ""
+    return _pygments_highlight(code, lexer, _PYGMENTS_FORMATTER)
+
 
 # GFM: tables + strikethrough + linkify (bare URL autolinks) enabled
 # explicitly on the "commonmark" base; tasklists via plugin. Raw HTML
@@ -23,7 +45,7 @@ _CHILDREN_TAG = re.compile(r"^\{\{children\}\}[ \t]*$", re.MULTILINE)
 # (https://github.github.com/gfm/#strikethrough-extension-) specifies
 # <del>...</del>; override the render rules to match GFM output.
 _md = (
-    MarkdownIt("commonmark", {"html": False, "linkify": True})
+    MarkdownIt("commonmark", {"html": False, "linkify": True, "highlight": _highlight_code})
     .enable(["table", "strikethrough", "linkify"])
     .use(tasklists_plugin)
 )

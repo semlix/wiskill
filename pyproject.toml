@@ -21,6 +21,7 @@ dependencies = [
     "mdit-py-plugins>=0.4",  # GFM: tables, strikethrough, tasklists
     "linkify-it-py>=2.0",    # GFM: bare URL autolinks (linkify=True)
     "pyyaml>=6.0",           # front-matter
+    "pygments>=2.17",        # fenced-code syntax highlighting
 ]
 
 [project.optional-dependencies]

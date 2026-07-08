@@ -196,6 +196,20 @@ h1, h2, h3 { font-family: "Fraunces", Georgia, serif; font-weight: 600; letter-s
 .prose pre { background: #201d17; color: #f0ead9; padding: 1rem 1.15rem; border-radius: var(--radius);
   overflow: auto; font-family: "JetBrains Mono", monospace; font-size: .86rem; line-height: 1.6; }
 .prose pre code { background: none; padding: 0; color: inherit; }
+/* Pygments token colors, tuned for the dark .prose pre panel above (its own
+   #201d17/#f0ead9 pair, not the light paper theme). */
+.prose pre .k, .prose pre .kn, .prose pre .kd, .prose pre .kc, .prose pre .kr, .prose pre .kp
+  { color: #7fd8c4; font-weight: 600; }
+.prose pre .nf, .prose pre .nc, .prose pre .nd, .prose pre .m, .prose pre .mi, .prose pre .mf,
+.prose pre .mo, .prose pre .mh, .prose pre .mb { color: #e8c07d; }
+.prose pre .nb, .prose pre .bp { color: #7fd8c4; }
+.prose pre .s, .prose pre .s1, .prose pre .s2, .prose pre .sa, .prose pre .sb, .prose pre .sc,
+.prose pre .sd, .prose pre .se, .prose pre .sh, .prose pre .si, .prose pre .sx, .prose pre .ss,
+.prose pre .sr { color: #e8956f; }
+.prose pre .c, .prose pre .c1, .prose pre .cm, .prose pre .cs, .prose pre .cp
+  { color: #8a8171; font-style: italic; }
+.prose pre .o, .prose pre .ow { color: #d8cdb8; }
+.prose pre .err { color: #e8956f; text-decoration: underline wavy; }
 .prose ul, .prose ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
 .prose li { margin: .25rem 0; }
 .prose img { max-width: 100%; border-radius: var(--radius); }

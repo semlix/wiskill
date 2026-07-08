@@ -13,6 +13,14 @@ def test_approximate_highlight_wraps_query_terms_and_escapes_html():
     assert out.count('<b class="match term') == 2
 
 
+def test_approximate_highlight_does_not_split_html_entities():
+    # Regression: matching against the already-escaped text let a query
+    # term like "amp" match inside "&amp;" and split the entity.
+    out = _approximate_highlight("Rock & roll amplifier", "amp")
+    assert out == "Rock &amp; roll amplifier"
+    assert "<b" not in out
+
+
 def test_approximate_highlight_no_query_terms_just_escapes():
     assert _approximate_highlight("plain <text>", "") == "plain &lt;text&gt;"
 

@@ -45,17 +45,26 @@ def _approximate_highlight(excerpt: str, query: str) -> str:
     is bag-of-words, so its snippet is just a plain excerpt). Wraps
     query-term occurrences in the same `<b class="match termN">` markup the
     core engine's real highlighter produces, so downstream cleanup
-    (clean_snippet_html) doesn't need to know which engine ran."""
-    escaped = html.escape(excerpt)
+    (clean_snippet_html) doesn't need to know which engine ran.
+
+    Matches are found in the *raw* excerpt, then each segment is escaped
+    individually — escaping first and matching second (the obvious way to
+    write this) lets a term like "amp" match inside an already-escaped
+    "&amp;" and split the entity, e.g. turning "&" into "&<b>amp</b>;"."""
     terms = sorted(set(re.findall(r"\w+", query.lower())), key=len, reverse=True)
     if not terms:
-        return escaped
+        return html.escape(excerpt)
     term_index = {t: i for i, t in enumerate(terms)}
     pattern = re.compile("|".join(rf"\b{re.escape(t)}\b" for t in terms), re.IGNORECASE)
-    return pattern.sub(
-        lambda m: f'<b class="match term{term_index[m.group(0).lower()]}">{m.group(0)}</b>',
-        escaped,
-    )
+    out = []
+    pos = 0
+    for m in pattern.finditer(excerpt):
+        out.append(html.escape(excerpt[pos:m.start()]))
+        term = m.group(0)
+        out.append(f'<b class="match term{term_index[term.lower()]}">{html.escape(term)}</b>')
+        pos = m.end()
+    out.append(html.escape(excerpt[pos:]))
+    return "".join(out)
 
 
 def content_for(page: Page) -> str:

@@ -42,7 +42,12 @@ class PageStore:
         # every snapshot as its own page).
         self.history_dir = Path(history_dir) if history_dir else self.pages_dir.parent / "history"
 
-    def slug_to_path(self, slug: str) -> Path:
+    @staticmethod
+    def _validated_segments(slug: str) -> list[str]:
+        """Shared slug validation for anything that turns a slug into a
+        filesystem path — slug_to_path (pages) and _history_dir_for
+        (snapshots) both need the exact same guarantee: no segment escapes
+        the directory it's joined onto."""
         slug = slug.strip()
         if slug.startswith("/"):
             raise ValueError("absolute slug not allowed")
@@ -53,6 +58,10 @@ class PageStore:
         for seg in segments:
             if not _SLUG_SEGMENT.match(seg) or seg in (".", ".."):
                 raise ValueError(f"invalid slug segment: {seg!r}")
+        return segments
+
+    def slug_to_path(self, slug: str) -> Path:
+        segments = self._validated_segments(slug)
         path = (self.pages_dir / Path(*segments)).with_suffix(".md")
         # Defense in depth: ensure the resolved path stays inside pages_dir.
         root = self.pages_dir.resolve()
@@ -96,7 +105,12 @@ class PageStore:
         )
 
     def _history_dir_for(self, slug: str) -> Path:
-        return self.history_dir.joinpath(*slug.split("/"))
+        segments = self._validated_segments(slug)
+        path = self.history_dir.joinpath(*segments)
+        root = self.history_dir.resolve()
+        if not str(path.resolve()).startswith(str(root)):
+            raise ValueError("slug escapes history directory")
+        return path
 
     @staticmethod
     def parse_stamp(stamp: str) -> datetime | None:
@@ -120,29 +134,35 @@ class PageStore:
         hist_dir = self._history_dir_for(slug)
         hist_dir.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now(timezone.utc)
-        path = hist_dir / f"{stamp.strftime(_HISTORY_STAMP)}.md"
+        path = hist_dir / f"{self.format_stamp(stamp)}.md"
         while path.exists():
             stamp += timedelta(microseconds=1)
-            path = hist_dir / f"{stamp.strftime(_HISTORY_STAMP)}.md"
+            path = hist_dir / f"{self.format_stamp(stamp)}.md"
         atomic_write_text(path, raw_text)
 
     def history(self, slug: str) -> list[datetime]:
         """Timestamps of prior revisions of `slug`, newest first. The
         current content (in the main page file) isn't included."""
-        hist_dir = self._history_dir_for(slug)
+        try:
+            hist_dir = self._history_dir_for(slug)
+        except ValueError:
+            return []
         if not hist_dir.exists():
             return []
         stamps = []
         for f in hist_dir.glob("*.md"):
-            try:
-                stamps.append(datetime.strptime(f.stem, _HISTORY_STAMP).replace(tzinfo=timezone.utc))
-            except ValueError:
-                continue
+            parsed = self.parse_stamp(f.stem)
+            if parsed is not None:
+                stamps.append(parsed)
         return sorted(stamps, reverse=True)
 
     def read_history(self, slug: str, stamp: datetime) -> Page | None:
         """A prior revision of `slug` as it was at `stamp` (from history())."""
-        path = self._history_dir_for(slug) / f"{stamp.strftime(_HISTORY_STAMP)}.md"
+        try:
+            hist_dir = self._history_dir_for(slug)
+        except ValueError:
+            return None
+        path = hist_dir / f"{self.format_stamp(stamp)}.md"
         if not path.exists():
             return None
         meta, body = self._split_front_matter(path.read_text(encoding="utf-8"))

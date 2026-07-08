@@ -51,6 +51,15 @@ def test_traversal_rejected(store, bad):
         store.slug_to_path(bad)
 
 
+@pytest.mark.parametrize("bad", ["../secret", "/etc/passwd", "a/../../b", "a/./b"])
+def test_history_dir_traversal_rejected(store, bad):
+    # Regression: _history_dir_for used to joinpath the slug's segments with
+    # no validation at all (unlike slug_to_path), so a crafted slug could
+    # resolve outside history_dir entirely.
+    with pytest.raises(ValueError):
+        store._history_dir_for(bad)
+
+
 @pytest.mark.parametrize("bad", ["../secret", "/etc/passwd", "a/../../b", "a/./b", ""])
 def test_exists_and_read_degrade_gracefully_on_malformed_slug(store, bad):
     # exists()/read() are predicates called on arbitrary text (e.g. a literal
@@ -58,6 +67,14 @@ def test_exists_and_read_degrade_gracefully_on_malformed_slug(store, bad):
     # raise, unlike write()/delete() which are real user actions.
     assert store.exists(bad) is False
     assert store.read(bad) is None
+
+
+@pytest.mark.parametrize("bad", ["../secret", "/etc/passwd", "a/../../b", "a/./b"])
+def test_history_and_read_history_degrade_gracefully_on_malformed_slug(store, bad):
+    # history()/read_history() are reachable from web routes with a raw URL
+    # path segment as the slug — same "never raise" contract as exists()/read().
+    assert store.history(bad) == []
+    assert store.read_history(bad, datetime.now(timezone.utc)) is None
 
 
 def test_write_snapshots_previous_revision(store, tmp_path):

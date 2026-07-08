@@ -153,7 +153,17 @@ a.tree-leaf:hover { text-decoration: underline; }
 
 h1, h2, h3 { font-family: "Fraunces", Georgia, serif; font-weight: 600; letter-spacing: -.015em; line-height: 1.15; }
 .page-title { font-size: clamp(2rem, 4vw, 2.9rem); margin: 0 0 .4rem; }
-.meta { color: var(--ink-soft); font-size: .82rem; display: flex; gap: .9rem; flex-wrap: wrap; align-items: center; }
+.meta {
+  color: var(--ink-soft); font-size: .82rem; display: flex; gap: .9rem;
+  flex-wrap: wrap; align-items: center; justify-content: space-between;
+}
+.page-size { display: flex; align-items: center; gap: .4rem; }
+.page-size select {
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  border-radius: 6px; padding: .15rem .4rem; font-size: .8rem;
+}
+.pager { display: flex; justify-content: space-between; margin-top: 1.4rem; font-size: .9rem; }
+.pager a { font-weight: 600; }
 .tags { display: flex; gap: .4rem; flex-wrap: wrap; margin: .8rem 0 0; padding: 0; }
 .tags span {
   background: var(--card); border: 1px solid var(--line);

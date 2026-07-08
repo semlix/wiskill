@@ -3,7 +3,20 @@
 {% block content %}
 <div class="breadcrumb"><a href="/">Home</a> <span class="sep">/</span> Search</div>
 <h1 class="page-title">{% if q %}Results for “{{ q }}”{% else %}Search{% endif %}</h1>
-{% if q %}<p class="meta">{{ results|length }} result{{ '' if results|length == 1 else 's' }}</p>{% endif %}
+{% if q %}
+<div class="meta">
+  <span>Page {{ page }} · {{ results|length }} result{{ '' if results|length == 1 else 's' }} shown</span>
+  <form class="page-size" method="get" action="/search">
+    <input type="hidden" name="q" value="{{ q }}">
+    <label for="n">Per page</label>
+    <select id="n" name="n" onchange="this.form.submit()">
+      {% for size in page_sizes %}
+      <option value="{{ size }}"{% if size == n %} selected{% endif %}>{{ size }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+{% endif %}
 <hr class="rule">
 {% if results %}
 <ul class="results">
@@ -15,6 +28,12 @@
   </li>
   {% endfor %}
 </ul>
+{% if has_prev or has_next %}
+<nav class="pager">
+  {% if has_prev %}<a href="/search?q={{ q|urlencode }}&amp;n={{ n }}&amp;page={{ page - 1 }}">← Prev</a>{% endif %}
+  {% if has_next %}<a href="/search?q={{ q|urlencode }}&amp;n={{ n }}&amp;page={{ page + 1 }}">Next →</a>{% endif %}
+</nav>
+{% endif %}
 {% elif q %}
 <p class="empty">No results for “{{ q }}”.</p>
 {% else %}

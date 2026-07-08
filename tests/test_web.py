@@ -48,6 +48,43 @@ def test_search_route(client):
     assert r.status_code == 200 and "foo" in r.text.lower()
 
 
+def test_search_pagination_default_page_size_and_next_link(client):
+    _login(client)
+    for i in range(12):
+        client.post(f"/pagetest/{i}", data={"title": f"Page {i}", "tags": "",
+                    "body": "paginationterm"}, follow_redirects=False)
+    r = client.get("/search", params={"q": "paginationterm"})
+    assert r.status_code == 200
+    assert r.text.count('class="result-title"') == 10
+    assert "Next" in r.text and "Prev" not in r.text
+
+    r2 = client.get("/search", params={"q": "paginationterm", "page": 2})
+    assert r2.status_code == 200
+    assert r2.text.count('class="result-title"') == 2
+    assert "Prev" in r2.text and "Next" not in r2.text
+
+
+def test_search_page_size_selector(client):
+    _login(client)
+    for i in range(12):
+        client.post(f"/pagetest/{i}", data={"title": f"Page {i}", "tags": "",
+                    "body": "paginationterm"}, follow_redirects=False)
+    r = client.get("/search", params={"q": "paginationterm", "n": 25})
+    assert r.status_code == 200
+    assert r.text.count('class="result-title"') == 12
+    assert "Next" not in r.text
+    assert '<option value="25" selected>' in r.text
+
+
+def test_search_invalid_page_size_falls_back_to_default(client):
+    _login(client)
+    client.post("/foo", data={"title": "Foo", "tags": "", "body": "authentication"},
+                follow_redirects=False)
+    r = client.get("/search", params={"q": "authentication", "n": 999})
+    assert r.status_code == 200
+    assert '<option value="10" selected>' in r.text
+
+
 def test_search_result_snippet_has_no_raw_markdown_or_score(client):
     _login(client)
     client.post("/projects/foo", data={

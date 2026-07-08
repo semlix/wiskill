@@ -232,18 +232,28 @@ def create_app(service: WikiService, users: UserStore, config, apikeys=None,
             "meta_title": page.title, "meta_description": plain_summary(page.body),
             **_common(p, authed)})
 
+    _PAGE_SIZES = (10, 25, 50, 100)
+
     @app.get("/search", response_class=HTMLResponse)
-    def search(request: Request, q: str = ""):
+    def search(request: Request, q: str = "", n: int = 10, page: int = 1):
         p, authed = viewer(request)
         if p is None:
             return RedirectResponse("/login", status_code=307)
-        results = service.search(q) if q else []
+        n = n if n in _PAGE_SIZES else 10
+        page = max(page, 1)
+        start = (page - 1) * n
+        # Over-fetch by a full extra page: anonymous viewers get private-namespace
+        # hits filtered out below, which would otherwise starve later pages.
+        raw = service.search(q, limit=start + 2 * n) if q else []
         if not authed:
-            results = [r for r in results if not is_private(r.slug)]
+            raw = [r for r in raw if not is_private(r.slug)]
+        results = raw[start:start + n]
+        has_next = len(raw) > start + n
         for r in results:
             r.snippet = clean_snippet_html(r.snippet)
         return templates.TemplateResponse(request, "search.html", {
-            "q": q, "results": results,
+            "q": q, "results": results, "n": n, "page": page,
+            "has_prev": page > 1, "has_next": has_next, "page_sizes": _PAGE_SIZES,
             "meta_title": (f"Search: {q}" if q else "Search"),
             "meta_description": (f"Search results for “{q}”." if q else _SITE_DESC),
             **_common(p, authed)})

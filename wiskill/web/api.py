@@ -35,8 +35,9 @@ def build_api_router(service, apikeys: ApiKeyStore) -> APIRouter:
                 "body": page.body}
 
     @router.get("/pages")
-    def list_pages(p: Principal = Depends(principal)):
-        return {"slugs": service.list_pages()}
+    def list_pages(namespace: str | None = None, tag: str | None = None,
+                   p: Principal = Depends(principal)):
+        return {"slugs": service.list_pages(namespace, tag)}
 
     @router.get("/pages/{slug:path}")
     def get_page(slug: str, p: Principal = Depends(principal)):

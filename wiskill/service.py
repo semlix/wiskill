@@ -74,8 +74,8 @@ class WikiService:
     def search(self, query: str, limit: int = 10):
         return self.backend.search(query, limit=limit)
 
-    def list_pages(self, namespace: str | None = None) -> list[str]:
-        return self.store.list_slugs(namespace)
+    def list_pages(self, namespace: str | None = None, tag: str | None = None) -> list[str]:
+        return self.store.list_slugs(namespace, tag)
 
     def tags_index(self) -> dict[str, int]:
         """{tag: page count}, for browsing all tags in use."""

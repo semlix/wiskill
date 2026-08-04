@@ -38,6 +38,17 @@ def test_list_and_namespace_filter(store):
     assert store.list_slugs("proyectos") == ["proyectos/a", "proyectos/b"]
 
 
+def test_list_slugs_tag_filter(store):
+    store.write("skills/foo", "x", tags=["skill"])
+    store.write("skills/bar", "y", tags=["skill", "draft"])
+    store.write("notes/baz", "z", tags=["draft"])
+    assert store.list_slugs(tag="skill") == ["skills/bar", "skills/foo"]
+    assert store.list_slugs(tag="draft") == ["notes/baz", "skills/bar"]
+    assert store.list_slugs(tag="nope") == []
+    # namespace + tag is an AND
+    assert store.list_slugs(namespace="skills", tag="draft") == ["skills/bar"]
+
+
 def test_delete(store):
     store.write("tmp", "x")
     assert store.delete("tmp") is True

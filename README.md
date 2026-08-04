@@ -179,7 +179,33 @@ curl "$BASE/api/search?q=notes" -H "X-API-Key: $KEY"        # search
 curl -X DELETE "$BASE/api/pages/notes/idea" -H "X-API-Key: $KEY"
 ```
 
+`GET /api/pages` takes optional `namespace` and/or `tag` query params to list
+only a subset of slugs instead of every page — useful when an external
+consumer wants to sync just one corner of the wiki:
+
+```bash
+curl "$BASE/api/pages?namespace=skills" -H "X-API-Key: $KEY"        # only under skills/
+curl "$BASE/api/pages?tag=skill" -H "X-API-Key: $KEY"                # only pages tagged "skill"
+curl "$BASE/api/pages?namespace=skills&tag=skill" -H "X-API-Key: $KEY"  # both (AND)
+```
+
 Missing/invalid key → `401`; insufficient role → `403`; missing page → `404`.
+
+### Convention: exporting a page as a "skill"
+
+No code or validation enforces this — it's a convention for wiki authors
+whose pages get consumed by something that treats them as skills (e.g. an
+agent syncing `GET /api/pages?namespace=skills&tag=skill` elsewhere). Start
+the page's `body` with a top-level heading that's a one-line description of
+what the skill does:
+
+```markdown
+# Summarizes a PDF into three bullet points
+```
+
+A consumer uses that heading's text as the skill's description. Pages
+without one still export fine — just with a less precise fallback
+description on the consumer's side.
 
 ---
 

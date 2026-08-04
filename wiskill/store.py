@@ -210,11 +210,13 @@ class PageStore:
         path.unlink()
         return True
 
-    def list_slugs(self, namespace: str | None = None) -> list[str]:
+    def list_slugs(self, namespace: str | None = None, tag: str | None = None) -> list[str]:
         slugs = [self.path_to_slug(p) for p in self.pages_dir.rglob("*.md")]
         if namespace:
             prefix = namespace.strip("/") + "/"
             slugs = [s for s in slugs if s.startswith(prefix)]
+        if tag:
+            slugs = [s for s in slugs if (page := self.read(s)) and tag in page.tags]
         return sorted(slugs)
 
     def iter_pages(self) -> Iterator[Page]:

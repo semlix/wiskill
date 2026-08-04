@@ -41,3 +41,27 @@ def test_put_get_search_delete(ctx):
 def test_get_missing_404(ctx):
     client, reader_key, _ = ctx
     assert client.get("/api/pages/ghost", headers={"X-API-Key": reader_key}).status_code == 404
+
+
+def test_list_pages_namespace_and_tag_filters(ctx):
+    client, reader_key, editor_key = ctx
+    eh = {"Authorization": f"Bearer {editor_key}"}
+    rh = {"X-API-Key": reader_key}
+    client.put("/api/pages/skills/foo", json={"tags": ["skill"], "body": "x"}, headers=eh)
+    client.put("/api/pages/skills/bar", json={"tags": ["skill", "draft"], "body": "y"}, headers=eh)
+    client.put("/api/pages/notes/baz", json={"tags": ["draft"], "body": "z"}, headers=eh)
+
+    assert sorted(client.get("/api/pages", headers=rh).json()["slugs"]) == [
+        "notes/baz", "skills/bar", "skills/foo"]  # no params: unchanged, every slug
+
+    r = client.get("/api/pages", params={"namespace": "skills"}, headers=rh)
+    assert sorted(r.json()["slugs"]) == ["skills/bar", "skills/foo"]
+
+    r = client.get("/api/pages", params={"tag": "skill"}, headers=rh)
+    assert sorted(r.json()["slugs"]) == ["skills/bar", "skills/foo"]
+
+    r = client.get("/api/pages", params={"namespace": "skills", "tag": "draft"}, headers=rh)
+    assert r.json()["slugs"] == ["skills/bar"]  # AND, not OR
+
+    r = client.get("/api/pages", params={"namespace": "nope", "tag": "nope"}, headers=rh)
+    assert r.json()["slugs"] == []

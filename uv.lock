@@ -1795,7 +1795,7 @@ wheels = [
 
 [[package]]
 name = "semlix-wiskill"
-version = "0.2.12"
+version = "0.2.18"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
@@ -1838,7 +1838,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1" },
     { name = "linkify-it-py", specifier = ">=2.0" },
     { name = "markdown-it-py", specifier = ">=3.0" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0,<2.0" },
     { name = "mdit-py-plugins", specifier = ">=0.4" },
     { name = "numpy" },
     { name = "pygments", specifier = ">=2.17" },

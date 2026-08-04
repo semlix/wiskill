@@ -27,7 +27,7 @@ dependencies = [
 [project.optional-dependencies]
 semantic = ["sentence-transformers"]
 bm25 = ["bm25s", "PyStemmer"]
-mcp = ["mcp>=1.0"]
+mcp = ["mcp>=1.0,<2.0"]  # 2.0 removed mcp.server.fastmcp (breaking); pin until wiskill/mcp/server.py migrates
 dev = ["pytest>=8.0", "httpx"]      # httpx: FastAPI TestClient
 
 [project.scripts]
